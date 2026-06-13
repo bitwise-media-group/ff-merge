@@ -1,0 +1,33 @@
+# This repo's own caller for the reusable ff-merge workflow — ff-merge dogfoods
+# itself. A maintainer comments `/merge` on an approved, green PR and the base
+# branch is fast-forwarded to the PR head, preserving its signature.
+#
+# Unlike examples/ff-merge.yaml — which consuming repos copy and pin to @v1 —
+# this calls the reusable workflow by local path (`./.github/workflows/...`), so
+# it always exercises this repo's current definition rather than a release.
+#
+# Trigger: issue_comment runs in the base-repo context, so the App credentials
+# are available even for fork PRs. The cheap author_association gate only filters
+# noise; the reusable workflow re-verifies write access authoritatively.
+
+name: Merge
+
+on:
+  issue_comment:
+    types: [created]
+
+# the App token does the privileged work; the job's GITHUB_TOKEN needs nothing
+permissions: {}
+
+jobs:
+  fast-forward:
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/merge' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    uses: ./.github/workflows/ff-merge.yaml
+    with:
+      pr-number: ${{ github.event.issue.number }}
+      client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
+    secrets:
+      app-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}

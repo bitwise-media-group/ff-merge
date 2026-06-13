@@ -1,0 +1,19 @@
+# CodeQL analysis configuration.
+#
+# dist/ is the Rollup-bundled Action output (src + vendored dependencies inlined;
+# see rollup.config.js). Its sources are already analysed directly via src/, so
+# scanning the bundle adds no coverage and only surfaces false positives from
+# third-party code. Exclude it.
+#
+# Security only: the security-extended suite runs the security queries (a
+# superset of the default) without the maintainability/reliability "quality"
+# queries that security-and-quality adds. Do NOT enable the repo-level "Code
+# quality" default-setup feature (Settings > Security > Code quality): it ignores
+# this config file and would scan the committed dist/ bundle.
+name: "ff-merge CodeQL config"
+
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  - dist

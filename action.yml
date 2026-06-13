@@ -1,0 +1,51 @@
+name: Fast-forward merge
+description: >-
+  Fast-forward a base branch to an approved, green pull request's head commit,
+  preserving the original commit signature. Verifies write access, approval,
+  passing checks, and a genuine fast-forward before moving the ref.
+author: BitWise Media Group
+
+branding:
+  icon: git-merge
+  color: purple
+
+inputs:
+  token:
+    description: >-
+      GitHub App installation token with contents:write, pull-requests:write,
+      and administration:read. Typically minted by the calling workflow with
+      actions/create-github-app-token.
+    required: true
+  repository:
+    description: The owner/repo whose base branch is fast-forwarded.
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: Number of the pull request to fast-forward into its base branch.
+    required: true
+  actor:
+    description: >-
+      Login that requested the merge; checked for write access when
+      maintainer-only is true.
+    required: false
+    default: ${{ github.actor }}
+  require-approval:
+    description: Require the pull request's review decision to be APPROVED.
+    required: false
+    default: 'true'
+  maintainer-only:
+    description: Require the actor to have write or higher access.
+    required: false
+    default: 'true'
+
+outputs:
+  merged:
+    description: '"true" if the base branch was fast-forwarded to the PR head.'
+  head-sha:
+    description: The PR head SHA the base branch now points to.
+  base:
+    description: The base branch that was fast-forwarded.
+
+runs:
+  using: node24
+  main: dist/index.js

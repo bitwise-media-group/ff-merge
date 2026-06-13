@@ -1,0 +1,67 @@
+# Reusable fast-forward "merge". A maintainer comments `/merge`; this workflow
+# mints a short-lived GitHub App token and runs the ff-merge action, which
+# verifies write access, approval, passing checks, and a genuine fast-forward,
+# then moves the base ref to the PR head. The commit object is untouched, so the
+# original developer's signature is preserved and release-please sees each
+# Conventional Commit individually.
+#
+# Runs only via workflow_call from a thin caller (examples/ff-merge.yaml) that
+# owns the trigger and a first-pass gate. The action re-verifies everything
+# security-relevant, so a misconfigured caller cannot move a branch on its own.
+# See README.md for the one-time org setup (App, ruleset bypass, org var/secret).
+name: Fast-forward merge
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: The pull request number to merge
+        required: true
+        type: number
+      app-client-id:
+        description: The client id of the github app used to perform the merge (vars.FF_MERGE_CLIENT_ID)
+        required: true
+        type: string
+      require-approval:
+        description: A value indicating whether or not to require the pull request to be approved by a maintainer
+        required: false
+        default: true
+        type: boolean
+      maintainer-only:
+        description: A value indicating whether or not to require the /merge comment author to be a maintainer
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      app-private-key:
+        description: The private key for the github app used to perform the merge (secrets.FF_MERGE_PRIVATE_KEY)
+        required: true
+
+# the action authenticates with the App token; the job github token is not used
+permissions: {}
+
+# serialize ref moves within a repo so two concurrent /merge commands can't race
+concurrency:
+  group: ff-merge-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  fast-forward:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint a github app installation token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+
+      # - name: Fast-forward merge
+      #   uses: bitwise-media-group/ff-merge@v1
+      #   with:
+      #     token: ${{ steps.app.outputs.token }}
+      #     repository: ${{ github.repository }}
+      #     pr-number: ${{ inputs.pr-number }}
+      #     actor: ${{ github.actor }}
+      #     require-approval: ${{ inputs.require-approval }}
+      #     maintainer-only: ${{ inputs.maintainer-only }}

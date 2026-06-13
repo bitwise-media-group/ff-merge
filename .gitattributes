@@ -1,0 +1,6 @@
+# dist/ is the Rollup-bundled Action output (generated from src/ — see
+# rollup.config.js and the CI "Verify dist/ is up to date" gate). It is a
+# required runtime artifact (action.yml -> runs.main: dist/index.js), so it
+# stays committed — but it is generated, not source. Mark it so GitHub keeps it
+# out of diffs, language stats, and (best-effort) code scanning / Code Quality.
+dist/** linguist-generated=true

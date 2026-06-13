@@ -1,0 +1,24 @@
+# This repo's own caller for the reusable ff-merge-notice workflow. When a PR is
+# opened it posts a one-time comment explaining this repo merges via `/merge`
+# (see merge.yaml). Calls the reusable workflow by local path so it tracks this
+# repo's current definition rather than a pinned release.
+#
+# pull_request_target (not pull_request) so the notice also reaches fork PRs; the
+# reusable workflow only posts a static comment with a pull-requests:write token,
+# so the elevated context is safe. No secret needed.
+
+name: Merge notice
+
+on:
+  pull_request_target:
+    types: [opened]
+
+# the reusable workflow comments with GITHUB_TOKEN; grant just that
+permissions:
+  pull-requests: write
+
+jobs:
+  notice:
+    uses: ./.github/workflows/ff-merge-notice.yaml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}

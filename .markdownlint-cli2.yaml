@@ -1,0 +1,28 @@
+# Copyright 2026 Bitwise Media Group
+# SPDX-License-Identifier: MIT
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/refs/heads/main/schema/markdownlint-cli2-config-schema.json
+config:
+  default: true
+  # keep prose readable in terminals and diffs; tables are exempt.
+  line-length:
+    line_length: 120
+    tables: false
+  no-duplicate-heading:
+    siblings_only: true
+  code-block-style:
+    style: fenced
+
+globs:
+  - "**/*.md"
+
+ignores:
+  # node cruft
+  - "node_modules/**"
+  - "__tests__/**"
+  # agent cruft
+  - ".claude/**"
+  # machine-written distribution
+  - "dist/**"
+  # machine-written by release-please, not house prose
+  - "CHANGELOG.md"

@@ -1,0 +1,12 @@
+# dependencies and build cruft
+node_modules/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# local agent handoff (re-created each batch, never committed)
+commit.sh
+
+# local agent/editor settings
+.claude/settings.local.json
+.claude/plans

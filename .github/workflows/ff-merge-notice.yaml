@@ -1,0 +1,50 @@
+# Reusable PR-opened notice — posts a one-time comment when a PR is opened,
+# explaining that this repo merges by fast-forward (a maintainer comments
+# `/merge`) so newcomers don't reach for the GitHub merge button. Companion to
+# ff-merge.yaml.
+#
+# Called via workflow_call from a thin caller that triggers on
+# pull_request_target (opened). pull_request_target — not pull_request — is used
+# so the notice also reaches fork PRs, where it matters most. This is the SAFE
+# use of that trigger: the workflow never checks out or runs PR code and
+# interpolates no PR-controlled content; it only posts a static comment with the
+# run's GITHUB_TOKEN, scoped to pull-requests:write. No App token or secret is
+# needed — posting a comment is not a privileged operation.
+
+name: Fast-forward merge notice
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: Pull request to comment on.
+        required: true
+        type: number
+
+permissions: {} # granted on the job
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    permissions:
+      # post the informational comment on the PR
+      pull-requests: write
+    steps:
+      - name: Post merge instructions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr-number }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            '> [!NOTE]' \
+            '> **Merging this PR:** this repository merges by **fast-forward** so every' \
+            '> commit keeps its original signature. The GitHub merge button is not used.' \
+            '> Once this PR is approved and all checks pass, a maintainer merges it by' \
+            '> commenting **`/merge`** on the PR.' \
+            '>' \
+            '> The branch must be up to date with `main` (rebased and re-signed) to' \
+            '> fast-forward. If `/merge` reports it is not fast-forwardable, rebase onto' \
+            '> `main` and comment `/merge` again.' \
+            | gh pr comment "$PR" --repo "$REPO" --body-file -
