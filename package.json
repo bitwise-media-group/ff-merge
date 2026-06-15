@@ -1,6 +1,6 @@
 {
   "name": "ff-merge",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "GitHub Action that fast-forwards an approved, green pull request into its base branch, preserving the original commit signature",
   "private": true,
   "type": "module",
