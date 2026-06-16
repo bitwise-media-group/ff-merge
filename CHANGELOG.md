@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.0.0...v1.1.0) (2026-06-16)
+
+
+### Features
+
+* add require-label input to skip PRs without an arming label ([#2](https://github.com/bitwise-media-group/ff-merge/issues/2)) ([0e144a9](https://github.com/bitwise-media-group/ff-merge/commit/0e144a948bb262bb8ba2aa2b4affc3184c9e6bfc))
+
 ## 1.0.0 (2026-06-15)
 
 
