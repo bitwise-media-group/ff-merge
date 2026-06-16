@@ -25,6 +25,7 @@ export interface PullRequest {
   baseRef: string
   headSha: string
   reviewDecision: ReviewDecision
+  labels: string[]
 }
 
 // A completed check passes only with one of these conclusions; everything else
@@ -34,6 +35,14 @@ const WRITE_PERMISSIONS = new Set(['admin', 'maintain', 'write'])
 
 export function hasWriteAccess(permission: string): boolean {
   return WRITE_PERMISSIONS.has(permission)
+}
+
+// A PR is "armed" when no label is required, or it carries the required label.
+// An unarmed PR is not a candidate for this invocation — the caller skips it
+// without merging and without failing (it is an opt-in marker, not a gate
+// failure), so this is checked separately from evaluateGate.
+export function isArmed(labels: string[], requireLabel: string): boolean {
+  return requireLabel === '' || labels.includes(requireLabel)
 }
 
 // status=ahead -> base is an ancestor of head (a fast-forward is possible);

@@ -8,6 +8,7 @@ export interface Inputs {
   actor: string
   requireApproval: boolean
   maintainerOnly: boolean
+  requireLabel: string
 }
 
 export function getInputs(): Inputs {
@@ -30,5 +31,6 @@ export function getInputs(): Inputs {
     actor: core.getInput('actor', { required: true }),
     requireApproval: core.getBooleanInput('require-approval'),
     maintainerOnly: core.getBooleanInput('maintainer-only'),
+    requireLabel: core.getInput('require-label'),
   }
 }

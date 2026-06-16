@@ -20,6 +20,7 @@ interface PullRequestQuery {
       baseRefName: string
       headRefOid: string
       reviewDecision: ReviewDecision
+      labels: { nodes: Array<{ name: string }> } | null
     } | null
   } | null
 }
@@ -41,6 +42,7 @@ export async function getPullRequest(
            baseRefName
            headRefOid
            reviewDecision
+           labels(first: 100) { nodes { name } }
          }
        }
      }`,
@@ -58,6 +60,7 @@ export async function getPullRequest(
     baseRef: pr.baseRefName,
     headSha: pr.headRefOid,
     reviewDecision: pr.reviewDecision,
+    labels: (pr.labels?.nodes ?? []).map((node) => node.name),
   }
 }
 

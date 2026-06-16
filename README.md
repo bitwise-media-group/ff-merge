@@ -136,8 +136,9 @@ the contention but re-signs every commit, so it's out.)
 | `actor`            | `${{ github.actor }}`      | Login checked for write access when `maintainer-only` is true.               |
 | `require-approval` | `true`                     | Require review decision `APPROVED`.                                          |
 | `maintainer-only`  | `true`                     | Require the actor to have write+ access.                                     |
+| `require-label`    | `''` (none)                | If set, skip (no merge, no failure) unless the PR carries this exact label.  |
 
-Outputs: `merged` (`"true"` on success), `head-sha`, `base`.
+Outputs: `merged` (`"true"` on success, `"false"` when skipped for a missing `require-label`), `head-sha`, `base`.
 
 ### `ff-merge.yaml` reusable workflow
 

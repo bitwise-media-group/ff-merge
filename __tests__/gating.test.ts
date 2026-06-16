@@ -5,6 +5,7 @@ import {
   type CompareStatus,
   evaluateGate,
   hasWriteAccess,
+  isArmed,
   isFastForwardable,
   type PullRequest,
 } from '../src/gating'
@@ -26,6 +27,20 @@ describe('hasWriteAccess', () => {
     ['', false],
   ])('%s -> %s', (permission, expected) => {
     expect(hasWriteAccess(permission)).toBe(expected)
+  })
+})
+
+describe('isArmed', () => {
+  it.each<[string[], string, boolean]>([
+    [[], '', true], // no label required -> always armed
+    [['auto-merge'], '', true], // no label required, labels present -> armed
+    [['auto-merge'], 'auto-merge', true], // required label present -> armed
+    [['other', 'auto-merge'], 'auto-merge', true], // present among others -> armed
+    [[], 'auto-merge', false], // required label absent (no labels) -> not armed
+    [['other'], 'auto-merge', false], // required label absent -> not armed
+    [['Auto-Merge'], 'auto-merge', false], // exact-match only (case-sensitive)
+  ])('labels=%j require=%j -> %s', (labels, requireLabel, expected) => {
+    expect(isArmed(labels, requireLabel)).toBe(expected)
   })
 })
 
@@ -96,6 +111,7 @@ describe('evaluateGate', () => {
     baseRef: 'main',
     headSha: 'abc123',
     reviewDecision: 'APPROVED',
+    labels: [],
   }
   const base = {
     pr: approvedOpenPr,

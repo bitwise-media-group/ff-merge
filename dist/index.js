@@ -28245,6 +28245,13 @@ const WRITE_PERMISSIONS = new Set(['admin', 'maintain', 'write']);
 function hasWriteAccess(permission) {
     return WRITE_PERMISSIONS.has(permission);
 }
+// A PR is "armed" when no label is required, or it carries the required label.
+// An unarmed PR is not a candidate for this invocation — the caller skips it
+// without merging and without failing (it is an opt-in marker, not a gate
+// failure), so this is checked separately from evaluateGate.
+function isArmed(labels, requireLabel) {
+    return requireLabel === '' || labels.includes(requireLabel);
+}
 // status=ahead -> base is an ancestor of head (a fast-forward is possible);
 // identical -> head already equals base. behind/diverged need a rebase.
 function isFastForwardable(status) {
@@ -33241,6 +33248,7 @@ async function getPullRequest(octokit, { owner, repo }, number) {
            baseRefName
            headRefOid
            reviewDecision
+           labels(first: 100) { nodes { name } }
          }
        }
      }`, { owner, repo, number });
@@ -33254,6 +33262,7 @@ async function getPullRequest(octokit, { owner, repo }, number) {
         baseRef: pr.baseRefName,
         headSha: pr.headRefOid,
         reviewDecision: pr.reviewDecision,
+        labels: (pr.labels?.nodes ?? []).map((node) => node.name),
     };
 }
 // The full status rollup for the head commit: Checks-API check runs plus legacy
@@ -33337,6 +33346,7 @@ function getInputs() {
         actor: getInput('actor', { required: true }),
         requireApproval: getBooleanInput('require-approval'),
         maintainerOnly: getBooleanInput('maintainer-only'),
+        requireLabel: getInput('require-label'),
     };
 }
 
@@ -33354,13 +33364,21 @@ async function run() {
         }
         info(`actor ${inputs.actor} has '${permission}' access`);
     }
-    // 2. Read PR state, the head commit's check rollup, and the fast-forward status.
+    // 2. Read PR state (incl. labels). An unarmed PR (require-label set but absent)
+    // is not a candidate for this run — skip without merging and without failing,
+    // before spending the heavier check/compare reads.
     const pr = await getPullRequest(octokit, repo, inputs.prNumber);
+    if (!isArmed(pr.labels, inputs.requireLabel)) {
+        info(`PR #${inputs.prNumber} does not carry the '${inputs.requireLabel}' label; skipping.`);
+        setOutput('merged', 'false');
+        return;
+    }
+    // 3. Read the head commit's check rollup and the fast-forward status.
     const [checks, compareStatus] = await Promise.all([
         getChecks(octokit, repo, pr.headSha),
         getCompareStatus(octokit, repo, pr.baseRef, pr.headSha),
     ]);
-    // 3. Gate. On refusal, tell the maintainer why on the PR itself, then fail.
+    // 4. Gate. On refusal, tell the maintainer why on the PR itself, then fail.
     const decision = evaluateGate({
         pr,
         checks,
@@ -33372,13 +33390,13 @@ async function run() {
         setFailed(decision.reasons.join('; '));
         return;
     }
-    // 4. Move the ref: this is the merge.
+    // 5. Move the ref: this is the merge.
     await fastForward(octokit, repo, pr.baseRef, pr.headSha);
     info(`✓ fast-forwarded '${pr.baseRef}' to ${pr.headSha} — signature preserved`);
     setOutput('merged', 'true');
     setOutput('head-sha', pr.headSha);
     setOutput('base', pr.baseRef);
-    // 5. Confirmation comment (best effort — the merge already happened).
+    // 6. Confirmation comment (best effort — the merge already happened).
     await tryComment(octokit, repo, inputs.prNumber, `Fast-forwarded \`${pr.baseRef}\` to \`${pr.headSha.slice(0, 12)}\` — original signature preserved, no re-sign.`);
 }
 async function tryComment(octokit, repo, prNumber, body) {

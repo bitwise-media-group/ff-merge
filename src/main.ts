@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { evaluateGate, hasWriteAccess } from './gating'
+import { evaluateGate, hasWriteAccess, isArmed } from './gating'
 import {
   comment,
   createOctokit,
@@ -29,14 +29,23 @@ export async function run(): Promise<void> {
     core.info(`actor ${inputs.actor} has '${permission}' access`)
   }
 
-  // 2. Read PR state, the head commit's check rollup, and the fast-forward status.
+  // 2. Read PR state (incl. labels). An unarmed PR (require-label set but absent)
+  // is not a candidate for this run — skip without merging and without failing,
+  // before spending the heavier check/compare reads.
   const pr = await getPullRequest(octokit, repo, inputs.prNumber)
+  if (!isArmed(pr.labels, inputs.requireLabel)) {
+    core.info(`PR #${inputs.prNumber} does not carry the '${inputs.requireLabel}' label; skipping.`)
+    core.setOutput('merged', 'false')
+    return
+  }
+
+  // 3. Read the head commit's check rollup and the fast-forward status.
   const [checks, compareStatus] = await Promise.all([
     getChecks(octokit, repo, pr.headSha),
     getCompareStatus(octokit, repo, pr.baseRef, pr.headSha),
   ])
 
-  // 3. Gate. On refusal, tell the maintainer why on the PR itself, then fail.
+  // 4. Gate. On refusal, tell the maintainer why on the PR itself, then fail.
   const decision = evaluateGate({
     pr,
     checks,
@@ -54,14 +63,14 @@ export async function run(): Promise<void> {
     return
   }
 
-  // 4. Move the ref: this is the merge.
+  // 5. Move the ref: this is the merge.
   await fastForward(octokit, repo, pr.baseRef, pr.headSha)
   core.info(`✓ fast-forwarded '${pr.baseRef}' to ${pr.headSha} — signature preserved`)
   core.setOutput('merged', 'true')
   core.setOutput('head-sha', pr.headSha)
   core.setOutput('base', pr.baseRef)
 
-  // 5. Confirmation comment (best effort — the merge already happened).
+  // 6. Confirmation comment (best effort — the merge already happened).
   await tryComment(
     octokit,
     repo,

@@ -37,6 +37,14 @@ inputs:
     description: Require the actor to have write or higher access.
     required: false
     default: 'true'
+  require-label:
+    description: >-
+      If set, only fast-forward when the pull request carries a label with this
+      exact name; otherwise skip without merging and without failing. Empty (the
+      default) imposes no label requirement. The auto-merge flow sets it to the
+      arming label. Needs no token scope beyond the pull-requests it already uses.
+    required: false
+    default: ''
 
 outputs:
   merged:
