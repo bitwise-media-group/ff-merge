@@ -13,8 +13,9 @@ inputs:
   token:
     description: >-
       GitHub App installation token with contents:write, pull-requests:write,
-      and administration:read. Typically minted by the calling workflow with
-      actions/create-github-app-token.
+      and administration:read, plus issues:write to auto-close linked issues
+      (omit it and the merge still succeeds; closing is skipped with a warning).
+      Typically minted by the calling workflow with actions/create-github-app-token.
     required: true
   repository:
     description: The owner/repo whose base branch is fast-forwarded.
@@ -53,6 +54,10 @@ outputs:
     description: The PR head SHA the base branch now points to.
   base:
     description: The base branch that was fast-forwarded.
+  closed-issues:
+    description: >-
+      Comma-separated "owner/repo#number" of the linked issues this merge closed
+      (the PR's closing-keyword references). Empty when there are none.
 
 runs:
   using: node24

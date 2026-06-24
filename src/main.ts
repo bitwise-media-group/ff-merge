@@ -1,10 +1,13 @@
 import * as core from '@actions/core'
 import { evaluateGate, hasWriteAccess, isArmed } from './gating'
 import {
+  type ClosingIssue,
+  closeIssue,
   comment,
   createOctokit,
   fastForward,
   getChecks,
+  getClosingIssues,
   getCompareStatus,
   getPermission,
   getPullRequest,
@@ -77,6 +80,55 @@ export async function run(): Promise<void> {
     inputs.prNumber,
     `Fast-forwarded \`${pr.baseRef}\` to \`${pr.headSha.slice(0, 12)}\` — original signature preserved, no re-sign.`,
   )
+
+  // 7. Replay GitHub's keyword auto-close. GitHub only runs "Closes #N" on
+  // merges made through its own merge API; a fast-forward is a raw ref move, so
+  // it marks the PR merged but never closes the linked issues. Best effort: the
+  // merge already landed, so any failure here only warns.
+  await closeLinkedIssues(octokit, repo, inputs.prNumber, pr.headSha)
+}
+
+// Close the issues the PR's closing keywords reference — the auto-close GitHub
+// skips on a fast-forward merge. closingIssuesReferences is GitHub's own parse,
+// so this matches exactly what a normal merge would have closed.
+async function closeLinkedIssues(
+  octokit: Octokit,
+  repo: Repo,
+  prNumber: number,
+  headSha: string,
+): Promise<void> {
+  let issues: ClosingIssue[] = []
+  try {
+    issues = await getClosingIssues(octokit, repo, prNumber)
+  } catch (err) {
+    core.warning(
+      `merged, but could not read linked issues: ${err instanceof Error ? err.message : err}`,
+    )
+  }
+
+  const prRef = `${repo.owner}/${repo.repo}#${prNumber}`
+  const closed: string[] = []
+  for (const issue of issues) {
+    // Skip anything already closed so a re-run never re-comments. Each close is
+    // independent: one failure (e.g. a cross-repo issue out of the App's reach)
+    // must not abort the rest.
+    if (issue.state !== 'OPEN') continue
+    const ref = `${issue.owner}/${issue.repo}#${issue.number}`
+    try {
+      await closeIssue(
+        octokit,
+        { owner: issue.owner, repo: issue.repo },
+        issue.number,
+        `Closed by ${prRef} (fast-forwarded to \`${headSha.slice(0, 12)}\`). GitHub does not auto-close ` +
+          'linked issues on a fast-forward merge, so the ff-merge action closed it.',
+      )
+      closed.push(ref)
+      core.info(`✓ closed ${ref}`)
+    } catch (err) {
+      core.warning(`failed to close ${ref}: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+  core.setOutput('closed-issues', closed.join(','))
 }
 
 async function tryComment(

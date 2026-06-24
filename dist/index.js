@@ -33265,6 +33265,33 @@ async function getPullRequest(octokit, { owner, repo }, number) {
         labels: (pr.labels?.nodes ?? []).map((node) => node.name),
     };
 }
+// The issues a PR's body marks for closure via keywords (Closes/Fixes/Resolves).
+// This is GitHub's own parse — every keyword form, same- and cross-repo refs —
+// exposed only on GraphQL, with no REST equivalent. It is the exact set GitHub
+// would auto-close on a normal merge but skips on a fast-forward. first:50 is a
+// sane ceiling; a single PR closing more than that is not a real workflow.
+async function getClosingIssues(octokit, { owner, repo }, number) {
+    const { repository } = await octokit.graphql(`query ($owner: String!, $repo: String!, $number: Int!) {
+       repository(owner: $owner, name: $repo) {
+         pullRequest(number: $number) {
+           closingIssuesReferences(first: 50) {
+             nodes {
+               number
+               state
+               repository { owner { login } name }
+             }
+           }
+         }
+       }
+     }`, { owner, repo, number });
+    const nodes = repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+    return nodes.map((node) => ({
+        owner: node.repository.owner.login,
+        repo: node.repository.name,
+        number: node.number,
+        state: node.state,
+    }));
+}
 // The full status rollup for the head commit: Checks-API check runs plus legacy
 // commit statuses, both fully paginated so a PR with more than a page of checks
 // can't slip a failing one past the gate.
@@ -33326,6 +33353,19 @@ async function fastForward(octokit, { owner, repo }, base, sha) {
 }
 async function comment(octokit, { owner, repo }, issueNumber, body) {
     await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body });
+}
+// Close an issue with an explanatory comment — replays the keyword auto-close
+// GitHub skips on a fast-forward merge. Needs the App's issues:write scope; the
+// caller treats a failure here as best-effort since the merge already landed.
+async function closeIssue(octokit, { owner, repo }, number, body) {
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: number, body });
+    await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: number,
+        state: 'closed',
+        state_reason: 'completed',
+    });
 }
 
 function getInputs() {
@@ -33398,6 +33438,43 @@ async function run() {
     setOutput('base', pr.baseRef);
     // 6. Confirmation comment (best effort — the merge already happened).
     await tryComment(octokit, repo, inputs.prNumber, `Fast-forwarded \`${pr.baseRef}\` to \`${pr.headSha.slice(0, 12)}\` — original signature preserved, no re-sign.`);
+    // 7. Replay GitHub's keyword auto-close. GitHub only runs "Closes #N" on
+    // merges made through its own merge API; a fast-forward is a raw ref move, so
+    // it marks the PR merged but never closes the linked issues. Best effort: the
+    // merge already landed, so any failure here only warns.
+    await closeLinkedIssues(octokit, repo, inputs.prNumber, pr.headSha);
+}
+// Close the issues the PR's closing keywords reference — the auto-close GitHub
+// skips on a fast-forward merge. closingIssuesReferences is GitHub's own parse,
+// so this matches exactly what a normal merge would have closed.
+async function closeLinkedIssues(octokit, repo, prNumber, headSha) {
+    let issues = [];
+    try {
+        issues = await getClosingIssues(octokit, repo, prNumber);
+    }
+    catch (err) {
+        warning(`merged, but could not read linked issues: ${err instanceof Error ? err.message : err}`);
+    }
+    const prRef = `${repo.owner}/${repo.repo}#${prNumber}`;
+    const closed = [];
+    for (const issue of issues) {
+        // Skip anything already closed so a re-run never re-comments. Each close is
+        // independent: one failure (e.g. a cross-repo issue out of the App's reach)
+        // must not abort the rest.
+        if (issue.state !== 'OPEN')
+            continue;
+        const ref = `${issue.owner}/${issue.repo}#${issue.number}`;
+        try {
+            await closeIssue(octokit, { owner: issue.owner, repo: issue.repo }, issue.number, `Closed by ${prRef} (fast-forwarded to \`${headSha.slice(0, 12)}\`). GitHub does not auto-close ` +
+                'linked issues on a fast-forward merge, so the ff-merge action closed it.');
+            closed.push(ref);
+            info(`✓ closed ${ref}`);
+        }
+        catch (err) {
+            warning(`failed to close ${ref}: ${err instanceof Error ? err.message : err}`);
+        }
+    }
+    setOutput('closed-issues', closed.join(','));
 }
 async function tryComment(octokit, repo, prNumber, body) {
     try {

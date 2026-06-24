@@ -41,6 +41,10 @@ marketplace actions.
    pass** · the head is a true **fast-forward** of its base.
 4. The action moves the base ref to the PR head. GitHub sees the head become reachable from base and auto-marks the PR
    **Merged**. On refusal it comments the reasons on the PR and fails the check.
+5. The action closes any issues the PR links with closing keywords (`Closes #N`, `Fixes owner/repo#N`, …). GitHub only
+   runs that auto-close for merges made through its own merge API, never for a fast-forward (a raw ref move), so the
+   action replays it. Best effort: the merge has already landed, so a failure here (e.g. the App lacks `issues: write`)
+   only warns.
 
 `git log --show-signature` on the base branch shows the original developer's signature — verifiable end to end.
 
@@ -58,10 +62,14 @@ Org **Settings → Developer settings → GitHub Apps → New GitHub App**.
   | -------------- | ---------------- | --------------------------------------------- |
   | Contents       | **Read & write** | move the base ref (the merge itself)          |
   | Pull requests  | **Read & write** | read PR state; post the confirmation comment  |
+  | Issues         | **Read & write** | close linked issues on merge (`Closes #N`)    |
   | Administration | **Read-only**    | resolve the actor's permission level (step 3) |
 
   > Don't want `Administration: read`? Set `maintainer-only: false` and rely on the caller's `author_association` gate
   > instead. You lose the precise write-vs-triage distinction but drop the broader scope.
+  >
+  > `Issues: write` only powers the linked-issue auto-close (see [How it works](#how-it-works), step 5). Omit it and
+  > merges still work — the action just logs a warning and leaves the issues open.
 
 - **Where can this app be installed?** Only on this account.
 
@@ -128,17 +136,18 @@ the contention but re-signs every commit, so it's out.)
 
 ### `ff-merge` action
 
-| Input              | Default                    | Meaning                                                                      |
-| ------------------ | -------------------------- | ---------------------------------------------------------------------------- |
-| `token`            | — (required)               | App installation token (`contents`, `pull-requests`, `administration:read`). |
-| `repository`       | `${{ github.repository }}` | `owner/repo` whose base branch is fast-forwarded.                            |
-| `pr-number`        | — (required)               | PR to fast-forward.                                                          |
-| `actor`            | `${{ github.actor }}`      | Login checked for write access when `maintainer-only` is true.               |
-| `require-approval` | `true`                     | Require review decision `APPROVED`.                                          |
-| `maintainer-only`  | `true`                     | Require the actor to have write+ access.                                     |
-| `require-label`    | `''` (none)                | If set, skip (no merge, no failure) unless the PR carries this exact label.  |
+| Input              | Default                    | Meaning                                                                                      |
+| ------------------ | -------------------------- | -------------------------------------------------------------------------------------------- |
+| `token`            | — (required)               | App installation token (`contents`, `pull-requests`, `administration:read`, `issues:write`). |
+| `repository`       | `${{ github.repository }}` | `owner/repo` whose base branch is fast-forwarded.                                            |
+| `pr-number`        | — (required)               | PR to fast-forward.                                                                          |
+| `actor`            | `${{ github.actor }}`      | Login checked for write access when `maintainer-only` is true.                               |
+| `require-approval` | `true`                     | Require review decision `APPROVED`.                                                          |
+| `maintainer-only`  | `true`                     | Require the actor to have write+ access.                                                     |
+| `require-label`    | `''` (none)                | If set, skip (no merge, no failure) unless the PR carries this exact label.                  |
 
-Outputs: `merged` (`"true"` on success, `"false"` when skipped for a missing `require-label`), `head-sha`, `base`.
+Outputs: `merged` (`"true"` on success, `"false"` when skipped for a missing `require-label`), `head-sha`, `base`,
+`closed-issues` (comma-separated `owner/repo#number` of the linked issues closed by the merge).
 
 ### `ff-merge.yaml` reusable workflow
 
@@ -160,14 +169,14 @@ npm test        # unit tests only
 npm run build   # rebuild dist/index.js
 ```
 
-| Path            | Role                                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------------------ |
-| `src/gating.ts` | pure gate logic — the unit-tested decision table                                                       |
-| `src/github.ts` | Octokit wrapper: paginated check rollup, GraphQL review decision, ref move                             |
-| `src/inputs.ts` | input parsing                                                                                          |
-| `src/main.ts`   | orchestration                                                                                          |
-| `__tests__/`    | vitest                                                                                                 |
-| `dist/index.js` | the Rollup bundle consumers actually run — committed, and CI fails if it doesn't reproduce from `src/` |
+| Path            | Role                                                                                                     |
+| --------------- | -------------------------------------------------------------------------------------------------------- |
+| `src/gating.ts` | pure gate logic — the unit-tested decision table                                                         |
+| `src/github.ts` | Octokit wrapper: paginated check rollup, GraphQL review decision & closing issues, ref move, issue close |
+| `src/inputs.ts` | input parsing                                                                                            |
+| `src/main.ts`   | orchestration                                                                                            |
+| `__tests__/`    | vitest                                                                                                   |
+| `dist/index.js` | the Rollup bundle consumers actually run — committed, and CI fails if it doesn't reproduce from `src/`   |
 
 There is no e2e: running the action for real would move a branch ref, so the gating logic is covered by the unit table
 instead, with the API's own non-fast-forward rejection as a backstop.

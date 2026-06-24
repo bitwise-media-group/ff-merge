@@ -64,6 +64,63 @@ export async function getPullRequest(
   }
 }
 
+export interface ClosingIssue {
+  owner: string
+  repo: string
+  number: number
+  state: 'OPEN' | 'CLOSED'
+}
+
+interface ClosingIssuesQuery {
+  repository: {
+    pullRequest: {
+      closingIssuesReferences: {
+        nodes: Array<{
+          number: number
+          state: 'OPEN' | 'CLOSED'
+          repository: { owner: { login: string }; name: string }
+        }>
+      } | null
+    } | null
+  } | null
+}
+
+// The issues a PR's body marks for closure via keywords (Closes/Fixes/Resolves).
+// This is GitHub's own parse — every keyword form, same- and cross-repo refs —
+// exposed only on GraphQL, with no REST equivalent. It is the exact set GitHub
+// would auto-close on a normal merge but skips on a fast-forward. first:50 is a
+// sane ceiling; a single PR closing more than that is not a real workflow.
+export async function getClosingIssues(
+  octokit: Octokit,
+  { owner, repo }: Repo,
+  number: number,
+): Promise<ClosingIssue[]> {
+  const { repository } = await octokit.graphql<ClosingIssuesQuery>(
+    `query ($owner: String!, $repo: String!, $number: Int!) {
+       repository(owner: $owner, name: $repo) {
+         pullRequest(number: $number) {
+           closingIssuesReferences(first: 50) {
+             nodes {
+               number
+               state
+               repository { owner { login } name }
+             }
+           }
+         }
+       }
+     }`,
+    { owner, repo, number },
+  )
+
+  const nodes = repository?.pullRequest?.closingIssuesReferences?.nodes ?? []
+  return nodes.map((node) => ({
+    owner: node.repository.owner.login,
+    repo: node.repository.name,
+    number: node.number,
+    state: node.state,
+  }))
+}
+
 // The full status rollup for the head commit: Checks-API check runs plus legacy
 // commit statuses, both fully paginated so a PR with more than a page of checks
 // can't slip a failing one past the gate.
@@ -153,4 +210,23 @@ export async function comment(
   body: string,
 ): Promise<void> {
   await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body })
+}
+
+// Close an issue with an explanatory comment — replays the keyword auto-close
+// GitHub skips on a fast-forward merge. Needs the App's issues:write scope; the
+// caller treats a failure here as best-effort since the merge already landed.
+export async function closeIssue(
+  octokit: Octokit,
+  { owner, repo }: Repo,
+  number: number,
+  body: string,
+): Promise<void> {
+  await octokit.rest.issues.createComment({ owner, repo, issue_number: number, body })
+  await octokit.rest.issues.update({
+    owner,
+    repo,
+    issue_number: number,
+    state: 'closed',
+    state_reason: 'completed',
+  })
 }
