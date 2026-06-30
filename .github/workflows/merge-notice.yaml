@@ -1,13 +1,15 @@
-# This repo's own caller for the reusable ff-merge-notice workflow. When a PR is
-# opened it posts a one-time comment explaining this repo merges via `/merge`
-# (see merge.yaml). Calls the reusable workflow by local path so it tracks this
-# repo's current definition rather than a pinned release.
-#
-# pull_request_target (not pull_request) so the notice also reaches fork PRs; the
-# reusable workflow only posts a static comment with a pull-requests:write token,
-# so the elevated context is safe. No secret needed.
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
 
-name: Merge notice
+# This repo's caller for the reusable merge-notice workflow. When a PR is opened it posts
+# a one-time comment explaining this repo merges via `/merge` (see merge.yaml).
+#
+# pull_request_target (not pull_request) so the notice also reaches fork PRs; the reusable
+# workflow only posts a static comment with a pull-requests:write token, so the elevated
+# context is safe. No secret needed.
+#
+# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+name: Merge Notice
 
 on:
   pull_request_target:
@@ -19,6 +21,6 @@ permissions:
 
 jobs:
   notice:
-    uses: ./.github/workflows/ff-merge-notice.yaml
+    uses: bitwise-media-group/github-workflows/.github/workflows/merge-notice.yaml@83b83722f4120b368e100e3b4a4af359522578c0 # v4.0.3
     with:
       pr-number: ${{ github.event.pull_request.number }}

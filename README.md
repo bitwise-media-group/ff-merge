@@ -1,8 +1,10 @@
 # ff-merge
 
-A GitHub Action — and the reusable workflows that drive it — for **signature-preserving fast-forward merges**. A
-maintainer comments `/merge` on an approved, green PR and the base branch is fast-forwarded to the PR head, keeping each
-commit's original signature.
+A GitHub Action for **signature-preserving fast-forward merges**. A maintainer comments `/merge` on an approved, green
+PR and the base branch is fast-forwarded to the PR head, keeping each commit's original signature. The reusable
+workflows that run this action live in
+[`bitwise-media-group/github-workflows`](https://github.com/bitwise-media-group/github-workflows) — consuming repos wire
+it up from there (see [Per-repo setup](#per-repo-setup)).
 
 GitHub's merge button can't give you a linear history that keeps the **original developer's signature**:
 
@@ -26,16 +28,17 @@ marketplace actions.
 
 - **`ff-merge` action** (root `action.yml`, TypeScript in `src/`) — verifies eligibility and moves the ref. The gate is
   pure, unit-tested logic; the GitHub I/O is a thin Octokit wrapper.
-- **`.github/workflows/ff-merge.yaml`** — reusable workflow: mints the App token and runs the action.
-- **`.github/workflows/ff-merge-notice.yaml`** — reusable workflow: comments on newly opened PRs explaining how to
-  merge.
-- **`examples/`** — the thin caller workflows each consuming repo copies in.
+
+The reusable workflows that run this action — `merge.yaml` (manual `/merge` + set-and-forget `/auto-merge`),
+`merge-notice.yaml`, `merge-review-ack.yaml`, and `dependabot-merge.yaml` — live in
+[`bitwise-media-group/github-workflows`](https://github.com/bitwise-media-group/github-workflows); consuming repos copy
+the thin caller workflows from that repo's `examples/`. This repo dogfoods them via its own `.github/workflows/`.
 
 ## How it works
 
 1. A maintainer comments `/merge` on an approved PR.
-2. The caller workflow (in the consuming repo) fires on `issue_comment` and calls this repo's reusable `ff-merge.yaml`
-   with the PR number.
+2. The caller workflow (in the consuming repo) fires on `issue_comment` and calls the reusable `merge.yaml` from
+   `bitwise-media-group/github-workflows` with the PR number.
 3. The reusable workflow mints a short-lived App token and runs the `ff-merge` action, which verifies, in order: the
    actor has **write+** access · the PR is **open**, not a draft · its review decision is **APPROVED** · **all checks
    pass** · the head is a true **fast-forward** of its base.
@@ -107,23 +110,22 @@ org-level) **ruleset** — **Settings → Rules → Rulesets → New branch rule
 
 ## Per-repo setup
 
-Copy [`examples/ff-merge.yaml`](examples/ff-merge.yaml) to `.github/workflows/ff-merge.yaml` in the consuming repo —
-that's the entire per-repo footprint. Then a maintainer can comment `/merge` on any approved, green, up-to-date PR.
+Copy the merge callers from
+[`bitwise-media-group/github-workflows/examples/`](https://github.com/bitwise-media-group/github-workflows/tree/main/examples)
+into the consuming repo's `.github/workflows/` — `merge.yaml` (and optionally `merge-notice.yaml`,
+`merge-review-ack.yaml`, and `dependabot-merge.yaml`) — and pin each `uses:` to a release tag or full commit SHA. That's
+the entire per-repo footprint; then a maintainer can comment `/merge` on any approved, green, up-to-date PR.
 
-Optionally also copy [`examples/ff-merge-notice.yaml`](examples/ff-merge-notice.yaml) — see below.
+## `merge-notice` — tell contributors how to merge
 
-## `ff-merge-notice` — tell contributors how to merge
-
-When a PR is opened this companion workflow posts a single comment explaining that the repo merges by fast-forward via a
-`/merge` comment, so contributors who don't know the convention don't reach for the merge button.
+`bitwise-media-group/github-workflows` ships a companion `merge-notice.yaml`: when a PR is opened it posts a single
+comment explaining that the repo merges by fast-forward via a `/merge` comment, so contributors who don't know the
+convention don't reach for the merge button.
 
 It triggers on **`pull_request_target` (opened)** rather than `pull_request`, so the notice also reaches **fork PRs** —
 where it matters most, since a fork's `pull_request` token is read-only and couldn't comment. This is the safe use of
 that trigger: it never checks out or runs PR code and interpolates no PR-controlled content; it only posts a static
 comment with a token scoped to `pull-requests: write`. No App token or secret is involved.
-
-To never grant an elevated token on fork PRs, switch the caller to `pull_request` (opened) and add
-`if: '!github.event.pull_request.head.repo.fork'` — same-repo PRs still get the notice; fork PRs get nothing.
 
 ## The one real trade-off
 
@@ -151,16 +153,11 @@ the contention but re-signs every commit, so it's out.)
 Outputs: `merged` (`"true"` on success, `"false"` when skipped for a missing `require-label`), `head-sha`, `base`,
 `closed-issues` (comma-separated `owner/repo#number` of the linked issues closed by the merge).
 
-### `ff-merge.yaml` reusable workflow
+### Reusable `merge` workflow
 
-| Input              | Default      | Meaning                                                    |
-| ------------------ | ------------ | ---------------------------------------------------------- |
-| `pr-number`        | — (required) | PR to fast-forward.                                        |
-| `client-id`        | — (required) | App Client ID, typically `${{ vars.FF_MERGE_CLIENT_ID }}`. |
-| `require-approval` | `true`       | Passed through to the action.                              |
-| `maintainer-only`  | `true`       | Passed through to the action.                              |
-
-Secret: `app-key` — the App private key, typically `${{ secrets.FF_MERGE_PRIVATE_KEY }}`.
+The inputs and secrets for the reusable `merge.yaml` (and the other callers) are documented in
+[`bitwise-media-group/github-workflows`](https://github.com/bitwise-media-group/github-workflows). Its `merge` job mints
+the App token and runs this action.
 
 ## Development
 
@@ -169,6 +166,7 @@ npm ci
 npm run all     # biome + markdownlint, tsc --noEmit, vitest, rollup build
 npm test        # unit tests only
 npm run build   # rebuild dist/index.js
+make ci         # the same gates CI runs: make lint / build / test
 ```
 
 | Path            | Role                                                                                                     |
@@ -187,9 +185,10 @@ instead, with the API's own non-fast-forward rejection as a backstop.
 
 release-please runs in manifest mode (`release-please-config.json` + `.release-please-manifest.json`) so the first run
 is deterministic: the `0.0.0` manifest anchor plus the initial `feat:` commit cut `v0.1.0` rather than a bootstrapped
-guess. It watches `main` and keeps a release PR current from the Conventional Commit history. Merging it cuts the
-`vX.Y.Z` tag and GitHub release; the publish job re-verifies that `dist/` reproduces from `src/` and moves the floating
-major tag (`v1`) that consumers reference.
+guess. It watches `main` and keeps a release PR current from the Conventional Commit history. Releasing runs through the
+reusable `release.yaml` from `bitwise-media-group/github-workflows`: merging the release PR cuts the `vX.Y.Z` tag and
+GitHub release, and the `vanity-tags` job moves the floating `v1` / `v1.1` tags that consumers of the action pin. `dist/`
+reproducibility from `src/` is verified in CI (`make build`), not at release.
 
 ## Notes & caveats
 
@@ -197,6 +196,6 @@ major tag (`v1`) that consumers reference.
   If you run advisory checks that may fail, make them non-failing or filter the rollup in `src/gating.ts`.
 - **The "Verified" badge** needs the signer's key known to GitHub. The signature _bytes_ are preserved regardless; the
   badge is the only part that depends on the public key being on the account/org.
-- **Pinning.** Consuming repos reference `…/ff-merge.yaml@v1` and the workflow references
-  `bitwise-media-group/ff-merge@v1` — the floating major tag the publish job maintains. For the strictest posture, pin
-  to a full commit SHA; Dependabot keeps it fresh.
+- **Pinning.** Consuming repos reference the reusable `…/github-workflows/.github/workflows/merge.yaml`, which in turn
+  references `bitwise-media-group/ff-merge@<sha>` — pinned to a full commit SHA (the floating `v1` / `v1.1` tags the
+  release workflow maintains are also available for a looser posture). Dependabot keeps the pins fresh.

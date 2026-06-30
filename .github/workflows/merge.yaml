@@ -1,33 +1,41 @@
-# This repo's own caller for the reusable ff-merge workflow — ff-merge dogfoods
-# itself. A maintainer comments `/merge` on an approved, green PR and the base
-# branch is fast-forwarded to the PR head, preserving its signature.
-#
-# Unlike examples/ff-merge.yaml — which consuming repos copy and pin to @v1 —
-# this calls the reusable workflow by local path (`./.github/workflows/...`), so
-# it always exercises this repo's current definition rather than a release.
-#
-# Trigger: issue_comment runs in the base-repo context, so the App credentials
-# are available even for fork PRs. The cheap author_association gate only filters
-# noise; the reusable workflow re-verifies write access authoritatively.
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
 
+# This repo's caller for the reusable merge workflow -- ff-merge dogfoods the merge flow
+# it powers. A maintainer comments `/merge` to fast-forward an approved, green PR now, or
+# arms auto-merge (`/auto-merge` comment or the `auto-merge` label) to merge it
+# automatically once approved and green. Both run the published ff-merge action, so every
+# commit keeps its signature.
+#
+# Every trigger is one that does NOT attach a check run to the PR (issue_comment,
+# workflow_run, schedule), so no skipped-job clutter lands on the PR's checks list. The
+# workflow_run list names every check that must be green -- "Continuous Integration" and
+# "Security Analysis" -- plus "Merge Review Ack", whose completion turns an approval into
+# a merge attempt; whichever finishes last triggers it, and ff-merge re-verifies all
+# checks before moving the ref.
+#
+# Org prerequisites (see README): the FF_MERGE_CLIENT_ID variable + FF_MERGE_PRIVATE_KEY
+# secret, and the "FF Merge" App in main's ruleset bypass list.
+#
+# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
 name: Merge
 
 on:
   issue_comment:
     types: [created]
+  workflow_run:
+    workflows: ["Continuous Integration", "Security Analysis", "Merge Review Ack"]
+    types: [completed]
+  schedule:
+    - cron: "17 * * * *"
 
-# the App token does the privileged work; the job's GITHUB_TOKEN needs nothing
+# the App token does the privileged work; the caller grants nothing
 permissions: {}
 
 jobs:
-  fast-forward:
-    if: >-
-      github.event.issue.pull_request &&
-      github.event.comment.body == '/merge' &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-    uses: ./.github/workflows/ff-merge.yaml
+  merge:
+    uses: bitwise-media-group/github-workflows/.github/workflows/merge.yaml@83b83722f4120b368e100e3b4a4af359522578c0 # v4.0.3
     with:
-      pr-number: ${{ github.event.issue.number }}
-      client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
+      app-client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
     secrets:
-      app-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}
+      app-private-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}

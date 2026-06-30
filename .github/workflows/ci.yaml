@@ -1,8 +1,14 @@
-# Lint, typecheck, unit tests with coverage, a fresh build, and a
-# dist-reproducibility gate: the committed dist/ must match a build from src/.
-# There is no e2e here — running the action for real would move a branch ref —
-# so the gating logic is covered by the unit table in __tests__/ instead.
-name: Continuous integration
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# Caller for the reusable CI workflow. It owns the push/pull_request triggers; the work
+# runs in github-workflows/ci.yaml, which runs the canonical Makefile gates (make lint /
+# build / test) as one job each and sets up the toolchains the repo has (package.json ->
+# node here). `make build` regenerates dist/ and the reusable workflow fails the run if
+# the committed bundle doesn't reproduce from src/.
+#
+# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+name: Continuous Integration
 
 on:
   push:
@@ -10,83 +16,10 @@ on:
   pull_request:
     branches: ["main", "releases/*"]
 
-# granted per job
-permissions: {}
+# the reusable workflow's jobs only need contents:read; grant just that ceiling
+permissions:
+  contents: read
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    permissions:
-      # check out the repository
-      contents: read
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm run typecheck
-      - run: npm run test:coverage
-      - run: npm run build
-      # The bundle consumers run is the one in git: a dist/ that does not
-      # reproduce from src/ is either a stale build or a tampered artifact.
-      - name: Verify dist/ is up to date
-        run: git diff --exit-code -- dist
-      # Hand the Cobertura report to the coverage job, which holds the
-      # CODECOV_TOKEN secret. Forked PRs don't receive secrets, so skip there.
-      - name: Upload coverage artifact
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-report
-          path: coverage/cobertura-coverage.xml
-          if-no-files-found: error
-      # Same secret-isolation reasoning: hand the JUnit report to the coverage
-      # job so Codecov Test Analytics is uploaded away from PR-supplied code.
-      - name: Upload test results artifact
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-results
-          path: test-report.junit.xml
-          if-no-files-found: error
-
-  # Uploads the Cobertura report to Codecov. Split out from `check` so the
-  # CODECOV_TOKEN secret is never present in the job that runs PR-supplied code
-  # (npm install scripts, test code).
-  coverage:
-    needs: check
-    if:
-      ${{ !cancelled() && needs.check.result == 'success' && (github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository) }}
-    runs-on: ubuntu-latest
-    permissions:
-      # check out the repo (for Codecov path-fixing) and download artifacts
-      contents: read
-    steps:
-      # Codecov path-fixes the report against the repo's file list (git
-      # ls-files); without a checkout that network is empty and Codecov rejects
-      # the report as unusable ("path mismatch"). This only places files on
-      # disk — no PR-supplied code runs here, so the token stays isolated.
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: coverage-report
-      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          # the artifact holds only this one file; don't let the action walk the tree
-          files: cobertura-coverage.xml
-          disable_search: true
-          fail_ci_if_error: true
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: test-results
-      - name: Upload test results to Codecov
-        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
-        with:
-          # the artifact holds only this one file; don't let the action walk the tree
-          files: test-report.junit.xml
-          disable_search: true
-          fail_ci_if_error: true
+  ci:
+    uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@83b83722f4120b368e100e3b4a4af359522578c0 # v4.0.3

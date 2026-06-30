@@ -1,0 +1,38 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# Caller for the reusable security workflow (replaces the old standalone codeql.yaml).
+# It owns the triggers and grants the analyze permissions; github-workflows/security.yaml
+# detects languages at the repo root -- here `actions` (the workflows) and
+# `javascript-typescript` (package.json / src/). The config-file excludes the bundled
+# dist/, whose sources are analysed via src/ (scanning the bundle only surfaces
+# vendored-dependency false positives).
+#
+# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+name: Security Analysis
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "releases/*"]
+  schedule:
+    - cron: "28 20 * * 4"
+
+# ceiling for the reusable workflow's analyze job
+permissions:
+  # upload analysis results to code scanning
+  security-events: write
+  # fetch internal or private CodeQL packs
+  packages: read
+  # only required for workflows in private repositories
+  actions: read
+  # check out the repository
+  contents: read
+
+jobs:
+  analyze:
+    uses: bitwise-media-group/github-workflows/.github/workflows/security.yaml@83b83722f4120b368e100e3b4a4af359522578c0 # v4.0.3
+    with:
+      # exclude the bundled dist/; its sources are analysed via src/
+      config-file: ./.github/codeql/codeql-config.yaml

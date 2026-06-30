@@ -1,7 +1,6 @@
 # dependencies and build cruft
 node_modules/
 coverage/
-test-report.junit.xml
 *.tsbuildinfo
 .DS_Store
 
