@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.2.0...v1.3.0) (2026-06-30)
+
+
+### Features
+
+* reuse a sticky status comment instead of posting a new one each run ([45ec9c9](https://github.com/bitwise-media-group/ff-merge/commit/45ec9c9426d9c00a2c1cf50d0ce6e764d6688c17))
+
 ## [1.2.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.1.0...v1.2.0) (2026-06-24)
 
 
