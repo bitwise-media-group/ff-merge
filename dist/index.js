@@ -33351,8 +33351,30 @@ async function getPermission(octokit, { owner, repo }, username) {
 async function fastForward(octokit, { owner, repo }, base, sha) {
     await octokit.rest.git.updateRef({ owner, repo, ref: `heads/${base}`, sha, force: false });
 }
-async function comment(octokit, { owner, repo }, issueNumber, body) {
-    await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body });
+// Hidden HTML marker stamped into every status comment this action posts. It
+// does not render, so it is invisible on the PR, but it lets a later run find
+// the comment it already left and update it in place rather than stacking a new
+// one. One sticky comment per PR tracks the latest merge status.
+const COMMENT_MARKER = '<!-- ff-merge -->';
+// Post the action's status comment, reusing the one it left earlier if present.
+// Avoids cluttering a PR with a fresh "Cannot /merge yet" comment on every run:
+// the refusal and the eventual confirmation share the same sticky comment, so
+// the latest status simply replaces the previous one.
+async function upsertComment(octokit, { owner, repo }, issueNumber, body) {
+    const marked = `${body}\n\n${COMMENT_MARKER}`;
+    // Paginate: the action's comment may be buried under later discussion.
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+        owner,
+        repo,
+        issue_number: issueNumber,
+        per_page: 100,
+    });
+    const existing = comments.find((c) => c.body?.includes(COMMENT_MARKER));
+    if (existing) {
+        await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: marked });
+        return;
+    }
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: marked });
 }
 // Close an issue with an explanatory comment — replays the keyword auto-close
 // GitHub skips on a fast-forward merge. Needs the App's issues:write scope; the
@@ -33478,7 +33500,7 @@ async function closeLinkedIssues(octokit, repo, prNumber, headSha) {
 }
 async function tryComment(octokit, repo, prNumber, body) {
     try {
-        await comment(octokit, repo, prNumber, body);
+        await upsertComment(octokit, repo, prNumber, body);
     }
     catch (err) {
         warning(`failed to post comment on #${prNumber}: ${err instanceof Error ? err.message : err}`);

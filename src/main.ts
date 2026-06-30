@@ -3,7 +3,6 @@ import { evaluateGate, hasWriteAccess, isArmed } from './gating'
 import {
   type ClosingIssue,
   closeIssue,
-  comment,
   createOctokit,
   fastForward,
   getChecks,
@@ -13,6 +12,7 @@ import {
   getPullRequest,
   type Octokit,
   type Repo,
+  upsertComment,
 } from './github'
 import { getInputs } from './inputs'
 
@@ -138,7 +138,7 @@ async function tryComment(
   body: string,
 ): Promise<void> {
   try {
-    await comment(octokit, repo, prNumber, body)
+    await upsertComment(octokit, repo, prNumber, body)
   } catch (err) {
     core.warning(
       `failed to post comment on #${prNumber}: ${err instanceof Error ? err.message : err}`,

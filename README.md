@@ -40,7 +40,9 @@ marketplace actions.
    actor has **write+** access · the PR is **open**, not a draft · its review decision is **APPROVED** · **all checks
    pass** · the head is a true **fast-forward** of its base.
 4. The action moves the base ref to the PR head. GitHub sees the head become reachable from base and auto-marks the PR
-   **Merged**. On refusal it comments the reasons on the PR and fails the check.
+   **Merged**. On refusal it comments the reasons on the PR and fails the check. The action keeps a single sticky status
+   comment per PR (tagged with a hidden `<!-- ff-merge -->` marker): re-running it updates that comment in place — the
+   eventual confirmation replaces the earlier refusal — rather than stacking a fresh comment each time.
 5. The action closes any issues the PR links with closing keywords (`Closes #N`, `Fixes owner/repo#N`, …). GitHub only
    runs that auto-close for merges made through its own merge API, never for a fast-forward (a raw ref move), so the
    action replays it. Best effort: the merge has already landed, so a failure here (e.g. the App lacks `issues: write`)
@@ -61,7 +63,7 @@ Org **Settings → Developer settings → GitHub Apps → New GitHub App**.
   | Permission     | Level            | Why                                           |
   | -------------- | ---------------- | --------------------------------------------- |
   | Contents       | **Read & write** | move the base ref (the merge itself)          |
-  | Pull requests  | **Read & write** | read PR state; post the confirmation comment  |
+  | Pull requests  | **Read & write** | read PR state; post/update the status comment |
   | Issues         | **Read & write** | close linked issues on merge (`Closes #N`)    |
   | Administration | **Read-only**    | resolve the actor's permission level (step 3) |
 

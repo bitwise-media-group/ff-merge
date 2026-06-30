@@ -203,13 +203,38 @@ export async function fastForward(
   await octokit.rest.git.updateRef({ owner, repo, ref: `heads/${base}`, sha, force: false })
 }
 
-export async function comment(
+// Hidden HTML marker stamped into every status comment this action posts. It
+// does not render, so it is invisible on the PR, but it lets a later run find
+// the comment it already left and update it in place rather than stacking a new
+// one. One sticky comment per PR tracks the latest merge status.
+export const COMMENT_MARKER = '<!-- ff-merge -->'
+
+// Post the action's status comment, reusing the one it left earlier if present.
+// Avoids cluttering a PR with a fresh "Cannot /merge yet" comment on every run:
+// the refusal and the eventual confirmation share the same sticky comment, so
+// the latest status simply replaces the previous one.
+export async function upsertComment(
   octokit: Octokit,
   { owner, repo }: Repo,
   issueNumber: number,
   body: string,
 ): Promise<void> {
-  await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body })
+  const marked = `${body}\n\n${COMMENT_MARKER}`
+
+  // Paginate: the action's comment may be buried under later discussion.
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+    owner,
+    repo,
+    issue_number: issueNumber,
+    per_page: 100,
+  })
+  const existing = comments.find((c) => c.body?.includes(COMMENT_MARKER))
+
+  if (existing) {
+    await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: marked })
+    return
+  }
+  await octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: marked })
 }
 
 // Close an issue with an explanatory comment — replays the keyword auto-close
