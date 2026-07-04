@@ -26,3 +26,5 @@ ignores:
   - "dist/**"
   # machine-written by release-please, not house prose
   - "CHANGELOG.md"
+  # shared Makefile library submodule — linted in its own repo
+  - "make/**"

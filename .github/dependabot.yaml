@@ -28,3 +28,20 @@ updates:
       bitwise-media-group:
         patterns:
           - bitwise-media-group/*
+
+  # The shared Makefile library (bitwise-media-group/make) included at make/ via
+  # the node-action archetype. Track the submodule so a library release (a new
+  # `release` branch head) flows here as a bump.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+      # our own make/ submodule ships straight through — no cooldown wait
+      exclude:
+        - make
+    commit-message:
+      include: scope
+      prefix: build
+      prefix-development: build

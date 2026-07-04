@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!package-lock.json", "!.claude"]
+    "includes": ["**", "!dist", "!package-lock.json", "!.claude", "!make"]
   },
   "formatter": {
     "enabled": true,

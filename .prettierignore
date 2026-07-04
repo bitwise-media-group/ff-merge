@@ -1,4 +1,5 @@
 .claude/
 dist/
+make/
 
 CHANGELOG.md
