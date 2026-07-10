@@ -1,5 +1,5 @@
 .claude/
 dist/
-make/
+.mise/
 
 CHANGELOG.md

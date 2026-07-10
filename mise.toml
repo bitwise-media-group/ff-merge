@@ -1,0 +1,10 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+#
+# ff-merge consumes the shared toolchain (bitwise-media-group/toolchain) as the
+# .mise/ submodule: pinned tools + the node-action task archetype come from
+# there, and the Makefile is a thin forwarder (.mise/mise.mk). The biome +
+# rollup + vitest toolchain is exactly what the archetype drives, so there are
+# no repo-local tasks or knobs.
+[task_config]
+includes = [".mise/tasks/node-action.toml"]

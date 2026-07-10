@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   analyze:
-    uses: bitwise-media-group/github-workflows/.github/workflows/security.yaml@a28e6738bc4f912322f9e66e9e90e7de789c4ad3 # v4.3.1
+    uses: bitwise-media-group/github-workflows/.github/workflows/security.yaml@ee856f73ecea9b0c2c989d3a6aa585774b0d2a38 # v5.0.0
     with:
       # exclude the bundled dist/; its sources are analysed via src/
       config-file: ./.github/codeql/codeql-config.yaml

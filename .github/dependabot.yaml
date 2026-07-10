@@ -38,9 +38,9 @@ updates:
       interval: daily
     cooldown:
       default-days: 7
-      # our own make/ submodule ships straight through — no cooldown wait
+      # our own toolchain submodule (.mise/) ships straight through — no cooldown wait
       exclude:
-        - make
+        - .mise
     commit-message:
       include: scope
       prefix: build
