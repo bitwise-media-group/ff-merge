@@ -187,8 +187,8 @@ release-please runs in manifest mode (`release-please-config.json` + `.release-p
 is deterministic: the `0.0.0` manifest anchor plus the initial `feat:` commit cut `v0.1.0` rather than a bootstrapped
 guess. It watches `main` and keeps a release PR current from the Conventional Commit history. Releasing runs through the
 reusable `release.yaml` from `bitwise-media-group/github-workflows`: merging the release PR cuts the `vX.Y.Z` tag and
-GitHub release, and the `vanity-tags` job moves the floating `v1` / `v1.1` tags that consumers of the action pin. `dist/`
-reproducibility from `src/` is verified in CI (`make build`), not at release.
+GitHub release, and the `vanity-tags` job moves the floating `v1` / `v1.1` tags that consumers of the action pin.
+`dist/` reproducibility from `src/` is verified in CI (`make build`), not at release.
 
 ## Notes & caveats
 
