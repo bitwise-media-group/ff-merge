@@ -1,0 +1,40 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# This repo's caller for the reusable Dependabot dist/ rebuild workflow. Dependabot bumps
+# a bundled (production) dependency but cannot run the build, so its PR lands with a stale
+# dist/ and CI's dist gate goes red -- and Dependabot auto-merge waits for green, so the
+# PR sticks (#15). When "Continuous Integration" fails on a dependabot/ branch, the
+# reusable workflow checks out the PR head, reruns `mise run build`, and -- only if dist/
+# actually changed -- pushes the regenerated bundle back to the PR branch as the App. That
+# push re-triggers CI, which now reproduces dist/ and goes green.
+#
+# It does not approve or merge: the rebuild commit makes the PR head a non-Dependabot
+# commit, so dependabot-merge.yaml stops auto-approving -- a human reviews the
+# (production-dependency) bump, and the existing App merge takes it from there. Dev-only
+# bumps never touch dist/, never fail CI, and keep auto-merging untouched.
+#
+# Requires the same org prerequisites as dependabot-merge.yaml: the "FF Merge" App
+# (contents:write, in main's ruleset bypass list), vars.FF_MERGE_CLIENT_ID, and
+# secrets.FF_MERGE_PRIVATE_KEY.
+#
+# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+name: Dependabot Dist Rebuild
+
+# workflow_run on CI's completion -- the reusable workflow filters to FAILED runs on
+# same-repo dependabot/ branches, so pushes to main, green runs, and forks are ignored.
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types: [completed]
+
+# the App token does the privileged work; the caller grants nothing
+permissions: {}
+
+jobs:
+  rebuild-dist:
+    uses: bitwise-media-group/github-workflows/.github/workflows/dependabot-dist.yaml@b9c031429f149794bedb5411b08d5a787b8d9959 # v6.0.1
+    with:
+      app-client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
+    secrets:
+      app-private-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}
