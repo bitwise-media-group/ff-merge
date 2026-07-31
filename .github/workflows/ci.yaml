@@ -22,4 +22,4 @@ permissions:
 
 jobs:
   ci:
-    uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@3636c830f0b00c591f8b27401c45786d08466f18 # v6.0.0
+    uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@b9c031429f149794bedb5411b08d5a787b8d9959 # v6.0.1
