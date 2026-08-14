@@ -32,7 +32,9 @@ marketplace actions.
 The reusable workflows that run this action — `merge.yaml` (manual `/merge` + set-and-forget `/auto-merge`),
 `merge-notice.yaml`, `merge-review-ack.yaml`, and `dependabot-merge.yaml` — live in
 [`bitwise-media-group/github-workflows`](https://github.com/bitwise-media-group/github-workflows); consuming repos copy
-the thin caller workflows from that repo's `examples/`. This repo dogfoods them via its own `.github/workflows/`.
+the thin caller workflows from that repo's `examples/`. This repo dogfoods the merge flow via its own
+`.github/workflows/` (its dependency PRs come from the org Renovate bot, which squash-merges via the API, so the
+`dependabot-merge.yaml` caller is not used here — the reusable remains for consumers still on Dependabot).
 
 ## How it works
 
@@ -198,4 +200,4 @@ GitHub release, and the `vanity-tags` job moves the floating `v1` / `v1.1` tags 
   badge is the only part that depends on the public key being on the account/org.
 - **Pinning.** Consuming repos reference the reusable `…/github-workflows/.github/workflows/merge.yaml`, which in turn
   references `bitwise-media-group/ff-merge@<sha>` — pinned to a full commit SHA (the floating `v1` / `v1.1` tags the
-  release workflow maintains are also available for a looser posture). Dependabot keeps the pins fresh.
+  release workflow maintains are also available for a looser posture). Renovate keeps the pins fresh.

@@ -6,7 +6,7 @@
 # node), then -- because vanity-tags is true -- moves the floating v1 / v1.1 tags that
 # consumers of the ff-merge action pin. A committed dist/ is verified in CI, not here.
 #
-# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+# Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Release
 
 on:

@@ -8,7 +8,7 @@
 # dist/, whose sources are analysed via src/ (scanning the bundle only surfaces
 # vendored-dependency false positives).
 #
-# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+# Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Security Analysis
 
 on:

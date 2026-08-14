@@ -8,7 +8,7 @@
 # workflow only posts a static comment with a pull-requests:write token, so the elevated
 # context is safe. No secret needed.
 #
-# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+# Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Merge Notice
 
 on:

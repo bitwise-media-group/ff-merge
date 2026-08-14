@@ -7,7 +7,7 @@
 # node here). `make build` regenerates dist/ and the reusable workflow fails the run if
 # the committed bundle doesn't reproduce from src/.
 #
-# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+# Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Continuous Integration
 
 on:

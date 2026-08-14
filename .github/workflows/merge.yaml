@@ -17,7 +17,7 @@
 # Org prerequisites (see README): the FF_MERGE_CLIENT_ID variable + FF_MERGE_PRIVATE_KEY
 # secret, and the "FF Merge" App in main's ruleset bypass list.
 #
-# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+# Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Merge
 
 on:

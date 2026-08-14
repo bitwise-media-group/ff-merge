@@ -1,0 +1,15 @@
+// Copyright 2026 BitWise Media Group Ltd
+// SPDX-License-Identifier: MIT
+
+// Repo layer on top of the shared org preset (renovate-config:default.json5),
+// carrying only what the old dependabot.yaml pinned deliberately:
+//
+//   - TypeScript 7 (the Go-native compiler) drops the JS API surface that
+//     @rollup/plugin-typescript loads at import time; stay on 6.x until the
+//     plugin supports TS 7.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  packageRules: [
+    { matchPackageNames: ["typescript"], allowedVersions: "<7" },
+  ],
+}

@@ -9,7 +9,7 @@
 # "Merge Review Ack" is listed in merge.yaml's workflow_run.workflows so its completion
 # turns an approval into a merge attempt.
 #
-# Pinned to a full commit SHA; Dependabot keeps the pin fresh.
+# Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Merge Review Ack
 
 on:
