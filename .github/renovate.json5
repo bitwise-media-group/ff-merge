@@ -11,5 +11,19 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   packageRules: [
     { matchPackageNames: ["typescript"], allowedVersions: "<7" },
+    // this repo commits its rollup bundle, so an npm bump alone leaves dist/ stale and
+    // the dist-up-to-date check blocks every merge path. Rebuild inside the update
+    // branch so the same PR carries a matching bundle. executionMode: branch runs the
+    // commands once per branch after all updates (groups, lock maintenance) are
+    // applied; the commands must match the bot's allowedCommands allow-list
+    // (renovate-config:renovate-global.json5) or Renovate skips them.
+    {
+      matchManagers: ["npm"],
+      postUpgradeTasks: {
+        commands: ["npm ci --ignore-scripts", "npm run build"],
+        fileFilters: ["dist/**"],
+        executionMode: "branch",
+      },
+    },
   ],
 }
