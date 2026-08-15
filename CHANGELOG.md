@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.3.0...v1.4.0) (2026-08-15)
+
+
+### Features
+
+* squash-merge pull requests from configured bot authors ([167b7e3](https://github.com/bitwise-media-group/ff-merge/commit/167b7e3584a0ba93c8f395a267d6217719212162))
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v6.1.1 ([#44](https://github.com/bitwise-media-group/ff-merge/issues/44)) ([0c72966](https://github.com/bitwise-media-group/ff-merge/commit/0c729665b34aaf65a8187205205820f4a348e3b0))
+
 ## [1.3.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.2.0...v1.3.0) (2026-06-30)
 
 
