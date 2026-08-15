@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { evaluateGate, hasWriteAccess, isArmed } from './gating'
+import { evaluateGate, hasWriteAccess, isArmed, mergeMethodFor } from './gating'
 import {
   type ClosingIssue,
   closeIssue,
@@ -12,6 +12,7 @@ import {
   getPullRequest,
   type Octokit,
   type Repo,
+  squashMerge,
   upsertComment,
 } from './github'
 import { getInputs } from './inputs'
@@ -42,10 +43,14 @@ export async function run(): Promise<void> {
     return
   }
 
-  // 3. Read the head commit's check rollup and the fast-forward status.
+  // 3. Read the head commit's check rollup and, on the fast-forward path, the
+  // compare status. A PR authored by a configured squash author is merged with
+  // a server-side squash instead — it needs no fast-forwardable branch, so the
+  // compare read is skipped.
+  const mergeMethod = mergeMethodFor(pr.authorLogin, inputs.squashAuthors)
   const [checks, compareStatus] = await Promise.all([
     getChecks(octokit, repo, pr.headSha),
-    getCompareStatus(octokit, repo, pr.baseRef, pr.headSha),
+    mergeMethod === 'ff' ? getCompareStatus(octokit, repo, pr.baseRef, pr.headSha) : null,
   ])
 
   // 4. Gate. On refusal, tell the maintainer why on the PR itself, then fail.
@@ -54,6 +59,7 @@ export async function run(): Promise<void> {
     checks,
     compareStatus,
     requireApproval: inputs.requireApproval,
+    mergeMethod,
   })
   if (!decision.allowed) {
     await tryComment(
@@ -66,7 +72,25 @@ export async function run(): Promise<void> {
     return
   }
 
-  // 5. Move the ref: this is the merge.
+  // 5a. Squash path: GitHub creates and signs the squash commit server-side,
+  // marks the PR merged, and runs its own keyword auto-close for linked issues
+  // (a real merge, unlike the raw ref move) — so this path ends here.
+  if (mergeMethod === 'squash') {
+    const mergeSha = await squashMerge(octokit, repo, inputs.prNumber, pr.headSha)
+    core.info(`✓ squash-merged #${inputs.prNumber} into '${pr.baseRef}' as ${mergeSha}`)
+    core.setOutput('merged', 'true')
+    core.setOutput('head-sha', mergeSha)
+    core.setOutput('base', pr.baseRef)
+    await tryComment(
+      octokit,
+      repo,
+      inputs.prNumber,
+      `Squash-merged into \`${pr.baseRef}\` as \`${mergeSha.slice(0, 12)}\` — squash commit created and signed by GitHub.`,
+    )
+    return
+  }
+
+  // 5b. Move the ref: this is the merge.
   await fastForward(octokit, repo, pr.baseRef, pr.headSha)
   core.info(`✓ fast-forwarded '${pr.baseRef}' to ${pr.headSha} — signature preserved`)
   core.setOutput('merged', 'true')

@@ -1,5 +1,69 @@
 import { describe, expect, it, vi } from 'vitest'
-import { COMMENT_MARKER, getClosingIssues, type Octokit, upsertComment } from '../src/github'
+import {
+  COMMENT_MARKER,
+  getClosingIssues,
+  getPullRequest,
+  type Octokit,
+  squashMerge,
+  upsertComment,
+} from '../src/github'
+
+describe('getPullRequest', () => {
+  const node = {
+    state: 'OPEN',
+    isDraft: false,
+    baseRefName: 'main',
+    headRefOid: 'abc123',
+    author: { login: 'bitwise-renovate' },
+    mergeable: 'MERGEABLE',
+    reviewDecision: 'APPROVED',
+    labels: { nodes: [{ name: 'auto-merge' }] },
+  }
+
+  it('maps the GraphQL node, including author login and mergeability', async () => {
+    const graphql = vi.fn().mockResolvedValue({ repository: { pullRequest: node } })
+    const octokit = { graphql } as unknown as Octokit
+
+    expect(await getPullRequest(octokit, { owner: 'acme', repo: 'app' }, 42)).toEqual({
+      state: 'OPEN',
+      isDraft: false,
+      baseRef: 'main',
+      headSha: 'abc123',
+      authorLogin: 'bitwise-renovate',
+      mergeable: 'MERGEABLE',
+      reviewDecision: 'APPROVED',
+      labels: ['auto-merge'],
+    })
+  })
+
+  it('maps a ghost (deleted) author to an empty login', async () => {
+    const graphql = vi
+      .fn()
+      .mockResolvedValue({ repository: { pullRequest: { ...node, author: null } } })
+    const octokit = { graphql } as unknown as Octokit
+
+    const pr = await getPullRequest(octokit, { owner: 'acme', repo: 'app' }, 42)
+    expect(pr.authorLogin).toBe('')
+  })
+})
+
+describe('squashMerge', () => {
+  it('merges via the API squash endpoint with the head-sha guard', async () => {
+    const merge = vi.fn().mockResolvedValue({ data: { sha: 'squash456', merged: true } })
+    const octokit = { rest: { pulls: { merge } } } as unknown as Octokit
+
+    const sha = await squashMerge(octokit, { owner: 'acme', repo: 'app' }, 42, 'abc123')
+
+    expect(sha).toBe('squash456')
+    expect(merge).toHaveBeenCalledWith({
+      owner: 'acme',
+      repo: 'app',
+      pull_number: 42,
+      merge_method: 'squash',
+      sha: 'abc123',
+    })
+  })
+})
 
 describe('getClosingIssues', () => {
   it('maps closingIssuesReferences nodes to owner/repo/number/state', async () => {

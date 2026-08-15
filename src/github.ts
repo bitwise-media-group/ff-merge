@@ -1,5 +1,5 @@
 import * as github from '@actions/github'
-import type { Check, CompareStatus, PullRequest, ReviewDecision } from './gating'
+import type { Check, CompareStatus, Mergeable, PullRequest, ReviewDecision } from './gating'
 
 export type Octokit = ReturnType<typeof github.getOctokit>
 
@@ -19,6 +19,8 @@ interface PullRequestQuery {
       isDraft: boolean
       baseRefName: string
       headRefOid: string
+      author: { login: string } | null
+      mergeable: Mergeable
       reviewDecision: ReviewDecision
       labels: { nodes: Array<{ name: string }> } | null
     } | null
@@ -41,6 +43,8 @@ export async function getPullRequest(
            isDraft
            baseRefName
            headRefOid
+           author { login }
+           mergeable
            reviewDecision
            labels(first: 100) { nodes { name } }
          }
@@ -59,6 +63,10 @@ export async function getPullRequest(
     isDraft: pr.isDraft,
     baseRef: pr.baseRefName,
     headSha: pr.headRefOid,
+    // author is null for a deleted (ghost) account; '' never matches a
+    // configured squash author, so a ghost PR falls back to the ff path.
+    authorLogin: pr.author?.login ?? '',
+    mergeable: pr.mergeable,
     reviewDecision: pr.reviewDecision,
     labels: (pr.labels?.nodes ?? []).map((node) => node.name),
   }
@@ -188,6 +196,28 @@ export async function getPermission(
     username,
   })
   return data.permission
+}
+
+// Merge the PR with a server-side squash. GitHub creates the squash commit
+// itself — web-flow signed, so a required-signatures ruleset is satisfied —
+// and, unlike a raw ref move, runs its own keyword auto-close for linked
+// issues. The sha argument makes GitHub reject the merge if the head moved
+// after the gate evaluated — the same backstop role force:false plays for the
+// fast-forward. Returns the squash commit's SHA.
+export async function squashMerge(
+  octokit: Octokit,
+  { owner, repo }: Repo,
+  prNumber: number,
+  headSha: string,
+): Promise<string> {
+  const { data } = await octokit.rest.pulls.merge({
+    owner,
+    repo,
+    pull_number: prNumber,
+    merge_method: 'squash',
+    sha: headSha,
+  })
+  return data.sha
 }
 
 // Move the base ref to the PR head. force:false means GitHub independently

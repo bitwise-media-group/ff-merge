@@ -7,6 +7,7 @@ import {
   hasWriteAccess,
   isArmed,
   isFastForwardable,
+  mergeMethodFor,
   type PullRequest,
 } from '../src/gating'
 
@@ -52,6 +53,29 @@ describe('isFastForwardable', () => {
     ['diverged', false],
   ])('%s -> %s', (status, expected) => {
     expect(isFastForwardable(status)).toBe(expected)
+  })
+})
+
+describe('mergeMethodFor', () => {
+  it.each<[string, string[], 'ff' | 'squash']>([
+    // empty list -> everything fast-forwards
+    ['bitwise-renovate', [], 'ff'],
+    // exact match
+    ['bitwise-renovate', ['bitwise-renovate'], 'squash'],
+    // GraphQL reports the bare app login; the config may use the REST or gh
+    // CLI spellings — all three must match
+    ['bitwise-renovate', ['bitwise-renovate[bot]'], 'squash'],
+    ['bitwise-renovate[bot]', ['bitwise-renovate'], 'squash'],
+    ['bitwise-renovate', ['app/bitwise-renovate'], 'squash'],
+    // case-insensitive
+    ['Bitwise-Renovate', ['bitwise-renovate'], 'squash'],
+    // non-matching author, and one of several entries matching
+    ['dmccaffery', ['bitwise-renovate[bot]'], 'ff'],
+    ['dependabot', ['bitwise-renovate[bot]', 'dependabot[bot]'], 'squash'],
+    // a ghost (deleted) author is mapped to '' and never squashes
+    ['', ['bitwise-renovate[bot]'], 'ff'],
+  ])('author=%j squashAuthors=%j -> %s', (author, squashAuthors, expected) => {
+    expect(mergeMethodFor(author, squashAuthors)).toBe(expected)
   })
 })
 
@@ -110,6 +134,8 @@ describe('evaluateGate', () => {
     isDraft: false,
     baseRef: 'main',
     headSha: 'abc123',
+    authorLogin: 'dmccaffery',
+    mergeable: 'MERGEABLE',
     reviewDecision: 'APPROVED',
     labels: [],
   }
@@ -118,6 +144,7 @@ describe('evaluateGate', () => {
     checks: [] as Check[],
     compareStatus: 'ahead' as CompareStatus,
     requireApproval: true,
+    mergeMethod: 'ff' as const,
   }
 
   it('allows an open, approved, green, fast-forwardable PR', () => {
@@ -171,14 +198,54 @@ describe('evaluateGate', () => {
     expect(d.reasons.some((r) => r.includes('not fast-forwardable (diverged)'))).toBe(true)
   })
 
+  it('blocks a missing compare status on the fast-forward path', () => {
+    const d = evaluateGate({ ...base, compareStatus: null })
+    expect(d.allowed).toBe(false)
+    expect(d.reasons.some((r) => r.includes('not fast-forwardable (unknown)'))).toBe(true)
+  })
+
   it('accumulates every failing reason at once', () => {
     const d = evaluateGate({
       pr: { ...approvedOpenPr, isDraft: true, reviewDecision: null },
       checks: [check('test', true, 'failure')],
       compareStatus: 'diverged',
       requireApproval: true,
+      mergeMethod: 'ff',
     })
     expect(d.allowed).toBe(false)
     expect(d.reasons).toHaveLength(4) // draft + approval + checks + fast-forward
+  })
+
+  describe('squash path', () => {
+    // A Renovate-style branch: behind base (merges without a rebase have
+    // happened since it was cut), but cleanly mergeable.
+    const squash = { ...base, compareStatus: null, mergeMethod: 'squash' as const }
+
+    it('allows a behind-base branch — no fast-forward requirement', () => {
+      expect(evaluateGate(squash)).toEqual({ allowed: true, reasons: [] })
+    })
+
+    it('blocks a conflicting branch', () => {
+      const d = evaluateGate({ ...squash, pr: { ...approvedOpenPr, mergeable: 'CONFLICTING' } })
+      expect(d.allowed).toBe(false)
+      expect(d.reasons).toEqual(['has merge conflicts — rebase onto main'])
+    })
+
+    it('proceeds while mergeability is still being computed', () => {
+      // UNKNOWN is not a block: the merge API itself is the authority, and a
+      // rejected call simply retries on the next trigger.
+      const d = evaluateGate({ ...squash, pr: { ...approvedOpenPr, mergeable: 'UNKNOWN' } })
+      expect(d.allowed).toBe(true)
+    })
+
+    it('still requires approval and green checks', () => {
+      const d = evaluateGate({
+        ...squash,
+        pr: { ...approvedOpenPr, reviewDecision: 'REVIEW_REQUIRED' },
+        checks: [check('test', true, 'failure')],
+      })
+      expect(d.allowed).toBe(false)
+      expect(d.reasons).toHaveLength(2) // approval + checks
+    })
   })
 })

@@ -19,11 +19,23 @@ export type CompareStatus = 'ahead' | 'behind' | 'identical' | 'diverged'
 
 export type ReviewDecision = 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
 
+// GraphQL's Mergeable enum: whether GitHub can compute a clean merge at all.
+// Only CONFLICTING is a definite block; UNKNOWN means the computation is still
+// running, and the merge API's own sha guard is the authority in that case.
+export type Mergeable = 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN'
+
+// How the merge lands: 'ff' moves the base ref to the PR head (signatures
+// preserved, requires a fast-forwardable branch); 'squash' asks GitHub to
+// create a server-side squash commit (web-flow signed, no rebase needed).
+export type MergeMethod = 'ff' | 'squash'
+
 export interface PullRequest {
   state: 'OPEN' | 'CLOSED' | 'MERGED'
   isDraft: boolean
   baseRef: string
   headSha: string
+  authorLogin: string
+  mergeable: Mergeable
   reviewDecision: ReviewDecision
   labels: string[]
 }
@@ -51,6 +63,24 @@ export function isFastForwardable(status: CompareStatus): boolean {
   return status === 'ahead' || status === 'identical'
 }
 
+// GraphQL reports a GitHub App author's login bare ("bitwise-renovate"), REST
+// appends "[bot]", and gh CLI prefixes "app/" — normalise all three spellings
+// so the configured squash-authors list matches however it was written.
+function normalizeLogin(login: string): string {
+  return login
+    .toLowerCase()
+    .replace(/^app\//, '')
+    .replace(/\[bot\]$/, '')
+}
+
+// A PR authored by one of the configured squash authors (bot accounts whose
+// branches are never rebased onto base, e.g. Renovate) is squash-merged;
+// everything else keeps the signature-preserving fast-forward.
+export function mergeMethodFor(authorLogin: string, squashAuthors: string[]): MergeMethod {
+  const author = normalizeLogin(authorLogin)
+  return squashAuthors.some((login) => normalizeLogin(login) === author) ? 'squash' : 'ff'
+}
+
 // A check blocks the merge if it has not completed (pending), or completed with
 // a conclusion outside the passing set. Returns a label per blocking check.
 export function blockingChecks(checks: Check[]): string[] {
@@ -62,8 +92,11 @@ export function blockingChecks(checks: Check[]): string[] {
 export interface GateInput {
   pr: PullRequest
   checks: Check[]
-  compareStatus: CompareStatus
+  // null when the merge method is 'squash' — the caller skips the compare
+  // read because a squash does not need a fast-forwardable branch.
+  compareStatus: CompareStatus | null
   requireApproval: boolean
+  mergeMethod: MergeMethod
 }
 
 export interface GateDecision {
@@ -78,6 +111,7 @@ export function evaluateGate({
   checks,
   compareStatus,
   requireApproval,
+  mergeMethod,
 }: GateInput): GateDecision {
   const reasons: string[] = []
   if (pr.state !== 'OPEN') reasons.push(`PR is ${pr.state}, not OPEN`)
@@ -87,8 +121,17 @@ export function evaluateGate({
   }
   const blocking = blockingChecks(checks)
   if (blocking.length > 0) reasons.push(`checks not passing: ${blocking.join(', ')}`)
-  if (!isFastForwardable(compareStatus)) {
-    reasons.push(`not fast-forwardable (${compareStatus}) — rebase and re-sign onto ${pr.baseRef}`)
+  if (mergeMethod === 'ff') {
+    if (compareStatus === null || !isFastForwardable(compareStatus)) {
+      reasons.push(
+        `not fast-forwardable (${compareStatus ?? 'unknown'}) — rebase and re-sign onto ${pr.baseRef}`,
+      )
+    }
+  } else if (pr.mergeable === 'CONFLICTING') {
+    // A squash tolerates a behind-base branch, but not conflicts. UNKNOWN (the
+    // computation is still running) proceeds: the merge API rejects a merge it
+    // cannot perform, and the run retries on the next trigger.
+    reasons.push(`has merge conflicts — rebase onto ${pr.baseRef}`)
   }
   return { allowed: reasons.length === 0, reasons }
 }

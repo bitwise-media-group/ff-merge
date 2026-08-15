@@ -9,6 +9,7 @@ export interface Inputs {
   requireApproval: boolean
   maintainerOnly: boolean
   requireLabel: string
+  squashAuthors: string[]
 }
 
 export function getInputs(): Inputs {
@@ -32,5 +33,10 @@ export function getInputs(): Inputs {
     requireApproval: core.getBooleanInput('require-approval'),
     maintainerOnly: core.getBooleanInput('maintainer-only'),
     requireLabel: core.getInput('require-label'),
+    // comma- or whitespace-separated logins; empty input -> empty list
+    squashAuthors: core
+      .getInput('squash-authors')
+      .split(/[\s,]+/)
+      .filter(Boolean),
   }
 }

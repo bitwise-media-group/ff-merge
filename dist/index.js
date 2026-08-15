@@ -28472,6 +28472,22 @@ function isArmed(labels, requireLabel) {
 function isFastForwardable(status) {
     return status === 'ahead' || status === 'identical';
 }
+// GraphQL reports a GitHub App author's login bare ("bitwise-renovate"), REST
+// appends "[bot]", and gh CLI prefixes "app/" — normalise all three spellings
+// so the configured squash-authors list matches however it was written.
+function normalizeLogin(login) {
+    return login
+        .toLowerCase()
+        .replace(/^app\//, '')
+        .replace(/\[bot\]$/, '');
+}
+// A PR authored by one of the configured squash authors (bot accounts whose
+// branches are never rebased onto base, e.g. Renovate) is squash-merged;
+// everything else keeps the signature-preserving fast-forward.
+function mergeMethodFor(authorLogin, squashAuthors) {
+    const author = normalizeLogin(authorLogin);
+    return squashAuthors.some((login) => normalizeLogin(login) === author) ? 'squash' : 'ff';
+}
 // A check blocks the merge if it has not completed (pending), or completed with
 // a conclusion outside the passing set. Returns a label per blocking check.
 function blockingChecks(checks) {
@@ -28481,7 +28497,7 @@ function blockingChecks(checks) {
 }
 // Evaluates every gate and accumulates all failing reasons (rather than
 // short-circuiting) so a maintainer sees everything wrong in one pass.
-function evaluateGate({ pr, checks, compareStatus, requireApproval, }) {
+function evaluateGate({ pr, checks, compareStatus, requireApproval, mergeMethod, }) {
     const reasons = [];
     if (pr.state !== 'OPEN')
         reasons.push(`PR is ${pr.state}, not OPEN`);
@@ -28493,8 +28509,16 @@ function evaluateGate({ pr, checks, compareStatus, requireApproval, }) {
     const blocking = blockingChecks(checks);
     if (blocking.length > 0)
         reasons.push(`checks not passing: ${blocking.join(', ')}`);
-    if (!isFastForwardable(compareStatus)) {
-        reasons.push(`not fast-forwardable (${compareStatus}) — rebase and re-sign onto ${pr.baseRef}`);
+    if (mergeMethod === 'ff') {
+        if (compareStatus === null || !isFastForwardable(compareStatus)) {
+            reasons.push(`not fast-forwardable (${compareStatus ?? 'unknown'}) — rebase and re-sign onto ${pr.baseRef}`);
+        }
+    }
+    else if (pr.mergeable === 'CONFLICTING') {
+        // A squash tolerates a behind-base branch, but not conflicts. UNKNOWN (the
+        // computation is still running) proceeds: the merge API rejects a merge it
+        // cannot perform, and the run retries on the next trigger.
+        reasons.push(`has merge conflicts — rebase onto ${pr.baseRef}`);
     }
     return { allowed: reasons.length === 0, reasons };
 }
@@ -33462,6 +33486,8 @@ async function getPullRequest(octokit, { owner, repo }, number) {
            isDraft
            baseRefName
            headRefOid
+           author { login }
+           mergeable
            reviewDecision
            labels(first: 100) { nodes { name } }
          }
@@ -33476,6 +33502,10 @@ async function getPullRequest(octokit, { owner, repo }, number) {
         isDraft: pr.isDraft,
         baseRef: pr.baseRefName,
         headSha: pr.headRefOid,
+        // author is null for a deleted (ghost) account; '' never matches a
+        // configured squash author, so a ghost PR falls back to the ff path.
+        authorLogin: pr.author?.login ?? '',
+        mergeable: pr.mergeable,
         reviewDecision: pr.reviewDecision,
         labels: (pr.labels?.nodes ?? []).map((node) => node.name),
     };
@@ -33559,6 +33589,22 @@ async function getPermission(octokit, { owner, repo }, username) {
     });
     return data.permission;
 }
+// Merge the PR with a server-side squash. GitHub creates the squash commit
+// itself — web-flow signed, so a required-signatures ruleset is satisfied —
+// and, unlike a raw ref move, runs its own keyword auto-close for linked
+// issues. The sha argument makes GitHub reject the merge if the head moved
+// after the gate evaluated — the same backstop role force:false plays for the
+// fast-forward. Returns the squash commit's SHA.
+async function squashMerge(octokit, { owner, repo }, prNumber, headSha) {
+    const { data } = await octokit.rest.pulls.merge({
+        owner,
+        repo,
+        pull_number: prNumber,
+        merge_method: 'squash',
+        sha: headSha,
+    });
+    return data.sha;
+}
 // Move the base ref to the PR head. force:false means GitHub independently
 // rejects any non-fast-forward update — a second backstop behind the explicit
 // compare check. Because the commit object is untouched, its signature is
@@ -33624,6 +33670,10 @@ function getInputs() {
         requireApproval: getBooleanInput('require-approval'),
         maintainerOnly: getBooleanInput('maintainer-only'),
         requireLabel: getInput('require-label'),
+        // comma- or whitespace-separated logins; empty input -> empty list
+        squashAuthors: getInput('squash-authors')
+            .split(/[\s,]+/)
+            .filter(Boolean),
     };
 }
 
@@ -33650,10 +33700,14 @@ async function run() {
         setOutput('merged', 'false');
         return;
     }
-    // 3. Read the head commit's check rollup and the fast-forward status.
+    // 3. Read the head commit's check rollup and, on the fast-forward path, the
+    // compare status. A PR authored by a configured squash author is merged with
+    // a server-side squash instead — it needs no fast-forwardable branch, so the
+    // compare read is skipped.
+    const mergeMethod = mergeMethodFor(pr.authorLogin, inputs.squashAuthors);
     const [checks, compareStatus] = await Promise.all([
         getChecks(octokit, repo, pr.headSha),
-        getCompareStatus(octokit, repo, pr.baseRef, pr.headSha),
+        mergeMethod === 'ff' ? getCompareStatus(octokit, repo, pr.baseRef, pr.headSha) : null,
     ]);
     // 4. Gate. On refusal, tell the maintainer why on the PR itself, then fail.
     const decision = evaluateGate({
@@ -33661,13 +33715,26 @@ async function run() {
         checks,
         compareStatus,
         requireApproval: inputs.requireApproval,
+        mergeMethod,
     });
     if (!decision.allowed) {
         await tryComment(octokit, repo, inputs.prNumber, `Cannot \`/merge\` this PR yet:\n\n${decision.reasons.map((r) => `- ${r}`).join('\n')}`);
         setFailed(decision.reasons.join('; '));
         return;
     }
-    // 5. Move the ref: this is the merge.
+    // 5a. Squash path: GitHub creates and signs the squash commit server-side,
+    // marks the PR merged, and runs its own keyword auto-close for linked issues
+    // (a real merge, unlike the raw ref move) — so this path ends here.
+    if (mergeMethod === 'squash') {
+        const mergeSha = await squashMerge(octokit, repo, inputs.prNumber, pr.headSha);
+        info(`✓ squash-merged #${inputs.prNumber} into '${pr.baseRef}' as ${mergeSha}`);
+        setOutput('merged', 'true');
+        setOutput('head-sha', mergeSha);
+        setOutput('base', pr.baseRef);
+        await tryComment(octokit, repo, inputs.prNumber, `Squash-merged into \`${pr.baseRef}\` as \`${mergeSha.slice(0, 12)}\` — squash commit created and signed by GitHub.`);
+        return;
+    }
+    // 5b. Move the ref: this is the merge.
     await fastForward(octokit, repo, pr.baseRef, pr.headSha);
     info(`✓ fast-forwarded '${pr.baseRef}' to ${pr.headSha} — signature preserved`);
     setOutput('merged', 'true');

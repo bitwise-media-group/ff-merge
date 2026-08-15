@@ -151,9 +151,21 @@ the contention but re-signs every commit, so it's out.)
 | `require-approval` | `true`                     | Require review decision `APPROVED`.                                                          |
 | `maintainer-only`  | `true`                     | Require the actor to have write+ access.                                                     |
 | `require-label`    | `''` (none)                | If set, skip (no merge, no failure) unless the PR carries this exact label.                  |
+| `squash-authors`   | `''` (none)                | Author logins (comma/space-separated) whose PRs are API-squash-merged instead (see below).   |
 
-Outputs: `merged` (`"true"` on success, `"false"` when skipped for a missing `require-label`), `head-sha`, `base`,
+Outputs: `merged` (`"true"` on success, `"false"` when skipped for a missing `require-label`), `head-sha` (the commit
+the base branch now points to — the PR head for a fast-forward, the squash commit for a squash merge), `base`,
 `closed-issues` (comma-separated `owner/repo#number` of the linked issues closed by the merge).
+
+#### Squash merges for bot authors
+
+A PR authored by one of the `squash-authors` logins (any spelling: `bitwise-renovate`, `bitwise-renovate[bot]`,
+`app/bitwise-renovate`) is merged with a **server-side API squash** instead of a fast-forward. This exists for bots like
+Renovate whose branches sit behind the base and are never rebased onto it: a squash needs no fast-forwardable branch
+(only a conflict-free one), and GitHub creates the squash commit itself — `web-flow`-signed, so a required-signatures
+ruleset stays satisfied even though the original authorship is collapsed. Every other gate (approval, green checks,
+arming label, PR state) applies unchanged, and GitHub runs its own keyword auto-close on this path, so the action's
+fast-forward-only issue-close replay is skipped.
 
 ### Reusable `merge` workflow
 

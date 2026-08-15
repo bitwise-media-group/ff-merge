@@ -2,7 +2,9 @@ name: Fast-forward merge
 description: >-
   Fast-forward a base branch to an approved, green pull request's head commit,
   preserving the original commit signature. Verifies write access, approval,
-  passing checks, and a genuine fast-forward before moving the ref.
+  passing checks, and a genuine fast-forward before moving the ref. Pull
+  requests from configured bot authors (squash-authors) are squash-merged
+  server-side instead — no rebase needed, squash commit signed by GitHub.
 author: BitWise Media Group
 
 branding:
@@ -46,12 +48,25 @@ inputs:
       arming label. Needs no token scope beyond the pull-requests it already uses.
     required: false
     default: ''
+  squash-authors:
+    description: >-
+      Comma- or space-separated author logins (e.g. "bitwise-renovate[bot]")
+      whose pull requests are merged with a server-side API squash instead of a
+      fast-forward. Meant for bots like Renovate whose branches sit behind the
+      base and are never rebased onto it: a squash needs no fast-forwardable
+      branch, and GitHub creates and web-flow-signs the squash commit, which
+      satisfies a required-signatures ruleset. Every other gate (approval,
+      checks, label) applies unchanged. Empty (the default) squashes nothing.
+    required: false
+    default: ''
 
 outputs:
   merged:
-    description: '"true" if the base branch was fast-forwarded to the PR head.'
+    description: '"true" if the pull request was merged.'
   head-sha:
-    description: The PR head SHA the base branch now points to.
+    description: >-
+      The commit SHA the base branch now points to — the PR head for a
+      fast-forward, the squash commit for a squash merge.
   base:
     description: The base branch that was fast-forwarded.
   closed-issues:
