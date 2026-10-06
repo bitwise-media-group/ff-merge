@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026 BitWise Media Group Ltd
+ * SPDX-License-Identifier: MIT
+ */
+
 // Pure decision logic for the fast-forward merge gate. Every input is
 // already-fetched data and there is no I/O here, so the whole gate is
 // unit-testable as a table — which matters, because this is the code that

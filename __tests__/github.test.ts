@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026 BitWise Media Group Ltd
+ * SPDX-License-Identifier: MIT
+ */
+
 import { describe, expect, it, vi } from 'vitest'
 import {
   COMMENT_MARKER,

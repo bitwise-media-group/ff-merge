@@ -28715,10 +28715,10 @@ function info(message) {
     process.stdout.write(message + os.EOL);
 }
 
-// Pure decision logic for the fast-forward merge gate. Every input is
-// already-fetched data and there is no I/O here, so the whole gate is
-// unit-testable as a table — which matters, because this is the code that
-// decides whether to move a protected branch.
+/**
+ * Copyright 2026 BitWise Media Group Ltd
+ * SPDX-License-Identifier: MIT
+ */
 // A completed check passes only with one of these conclusions; everything else
 // (failure, error, cancelled, timed_out, action_required, stale, ...) blocks.
 const PASSING_CONCLUSIONS = new Set(['success', 'neutral', 'skipped']);
@@ -34133,6 +34133,10 @@ function getOctokit(token, options, ...additionalPlugins) {
     return new GitHubWithPlugins(getOctokitOptions(token));
 }
 
+/**
+ * Copyright 2026 BitWise Media Group Ltd
+ * SPDX-License-Identifier: MIT
+ */
 function createOctokit(token) {
     return getOctokit(token);
 }
@@ -34312,6 +34316,10 @@ async function closeIssue(octokit, { owner, repo }, number, body) {
     });
 }
 
+/**
+ * Copyright 2026 BitWise Media Group Ltd
+ * SPDX-License-Identifier: MIT
+ */
 function getInputs() {
     const repository = getInput('repository', { required: true });
     const [owner, repo] = repository.split('/');
@@ -34338,6 +34346,10 @@ function getInputs() {
     };
 }
 
+/**
+ * Copyright 2026 BitWise Media Group Ltd
+ * SPDX-License-Identifier: MIT
+ */
 async function run() {
     const inputs = getInputs();
     const octokit = createOctokit(inputs.token);

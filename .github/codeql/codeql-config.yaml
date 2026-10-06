@@ -1,3 +1,6 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # CodeQL analysis configuration.
 #
 # dist/ is the Rollup-bundled Action output (src + vendored dependencies inlined;
