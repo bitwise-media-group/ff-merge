@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: MIT
 
 # Caller for the reusable CI workflow. It owns the push/pull_request triggers; the work
-# runs in github-workflows/ci.yaml, which runs the canonical Makefile gates (make lint /
-# build / test) as one job each and sets up the toolchains the repo has (package.json ->
-# node here). `make build` regenerates dist/ and the reusable workflow fails the run if
-# the committed bundle doesn't reproduce from src/.
+# runs in github-workflows/ci.yaml, which installs the mise-pinned toolchain (node from
+# the root mise.toml) and runs `mise run <task>` for each canonical task the repo defines
+# (lint / build / test here) as one job each. `mise run build` regenerates dist/ and the
+# reusable workflow fails the run if the committed bundle doesn't reproduce from src/.
 #
 # Pinned to a full commit SHA; Renovate keeps the pin fresh.
 name: Continuous Integration

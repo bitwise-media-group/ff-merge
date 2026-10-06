@@ -176,11 +176,12 @@ the App token and runs this action.
 ## Development
 
 ```sh
+mise install    # the pinned node + lint tools (root mise.toml + the .mise/ toolchain submodule)
 npm ci
 npm run all     # biome + markdownlint, tsc --noEmit, vitest, rollup build
 npm test        # unit tests only
 npm run build   # rebuild dist/index.js
-make ci         # the same gates CI runs: make lint / build / test
+mise run ci     # the same gates CI runs: lint / build / test (`make ci` forwards here)
 ```
 
 | Path            | Role                                                                                                     |
@@ -202,7 +203,7 @@ is deterministic: the `0.0.0` manifest anchor plus the initial `feat:` commit cu
 guess. It watches `main` and keeps a release PR current from the Conventional Commit history. Releasing runs through the
 reusable `release.yaml` from `bitwise-media-group/github-workflows`: merging the release PR cuts the `vX.Y.Z` tag and
 GitHub release, and the `vanity-tags` job moves the floating `v1` / `v1.1` tags that consumers of the action pin.
-`dist/` reproducibility from `src/` is verified in CI (`make build`), not at release.
+`dist/` reproducibility from `src/` is verified in CI (`mise run build`), not at release.
 
 ## Notes & caveats
 
