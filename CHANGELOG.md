@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.1](https://github.com/bitwise-media-group/ff-merge/compare/v1.4.0...v1.4.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v6.2.0 ([#53](https://github.com/bitwise-media-group/ff-merge/issues/53)) ([4a6587f](https://github.com/bitwise-media-group/ff-merge/commit/4a6587f9c466dd964f2bbbec42478dd70ae469f0))
+* **deps:** update bitwise-media-group/github-workflows action to v6.3.0 ([#89](https://github.com/bitwise-media-group/ff-merge/issues/89)) ([f4f070e](https://github.com/bitwise-media-group/ff-merge/commit/f4f070e49c7f26a17a24d3c3fa967137027c6c5d))
+* **deps:** update bitwise-media-group/github-workflows action to v7.0.1 ([#152](https://github.com/bitwise-media-group/ff-merge/issues/152)) ([75111e0](https://github.com/bitwise-media-group/ff-merge/commit/75111e0d4d9279796b260ed681ba01e985c2ddc7))
+
 ## [1.4.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.3.0...v1.4.0) (2026-08-15)
 
 
