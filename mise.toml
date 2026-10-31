@@ -13,7 +13,7 @@
 lockfile = true
 
 [tools]
-node = "24.22.2"
+node = "26.13.0"
 
 [vars]
 # a GitHub Action repo: npm ci runs the lifecycle scripts
