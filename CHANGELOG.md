@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.1](https://github.com/bitwise-media-group/ff-merge/compare/v1.4.0...v1.4.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v6.2.0 ([#53](https://github.com/bitwise-media-group/ff-merge/issues/53)) ([4a6587f](https://github.com/bitwise-media-group/ff-merge/commit/4a6587f9c466dd964f2bbbec42478dd70ae469f0))
+* **deps:** update bitwise-media-group/github-workflows action to v6.3.0 ([#89](https://github.com/bitwise-media-group/ff-merge/issues/89)) ([f4f070e](https://github.com/bitwise-media-group/ff-merge/commit/f4f070e49c7f26a17a24d3c3fa967137027c6c5d))
+* **deps:** update bitwise-media-group/github-workflows action to v7.0.1 ([#152](https://github.com/bitwise-media-group/ff-merge/issues/152)) ([75111e0](https://github.com/bitwise-media-group/ff-merge/commit/75111e0d4d9279796b260ed681ba01e985c2ddc7))
+* **deps:** update bitwise-media-group/github-workflows action to v8 ([#153](https://github.com/bitwise-media-group/ff-merge/issues/153)) ([6bf8d3d](https://github.com/bitwise-media-group/ff-merge/commit/6bf8d3d9df4c3127afefd1be3cba0e49bb7d6b36))
+* **deps:** update bitwise-media-group/github-workflows action to v8.0.1 ([#180](https://github.com/bitwise-media-group/ff-merge/issues/180)) ([2126b36](https://github.com/bitwise-media-group/ff-merge/commit/2126b365b8275441d8fae7fe12fdfd0f6770a299))
+* **deps:** update bitwise-media-group/github-workflows action to v8.1.0 ([#206](https://github.com/bitwise-media-group/ff-merge/issues/206)) ([b4e8fd2](https://github.com/bitwise-media-group/ff-merge/commit/b4e8fd23dc60552f979a1de732638539e935dbc8))
+
 ## [1.4.0](https://github.com/bitwise-media-group/ff-merge/compare/v1.3.0...v1.4.0) (2026-08-15)
 
 
