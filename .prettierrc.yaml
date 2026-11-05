@@ -1,5 +1,18 @@
 # Copyright 2026 BitWise Media Group Ltd
 # SPDX-License-Identifier: MIT
 
-proseWrap: always
-printWidth: 120
+# bun fmt (Prettier-compatible) options, carrying biome's old formatter settings
+# across: 100 columns everywhere, and single quotes without semicolons for
+# JS/TS only (biome's quote style never applied to JSON or YAML). A repo copy
+# replaces the toolchain's house .prettierrc.yaml wholesale, so the house prose
+# options are restated for Markdown.
+printWidth: 100
+overrides:
+  - files: ["*.ts", "*.js", "*.mjs", "*.cjs"]
+    options:
+      semi: false
+      singleQuote: true
+  - files: "*.md"
+    options:
+      proseWrap: always
+      printWidth: 120

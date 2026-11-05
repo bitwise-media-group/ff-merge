@@ -1,26 +1,23 @@
 // Copyright 2026 BitWise Media Group Ltd
 // SPDX-License-Identifier: MIT
 
-// Repo layer on top of the shared org preset (renovate-config:default.json5),
-// carrying only what the old dependabot.yaml pinned deliberately:
-//
-//   - TypeScript 7 (the Go-native compiler) drops the JS API surface that
-//     @rollup/plugin-typescript loads at import time; stay on 6.x until the
-//     plugin supports TS 7.
+// Repo layer on top of the shared org preset (renovate-config:default.json5).
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   packageRules: [
-    { matchPackageNames: ["typescript"], allowedVersions: "<7" },
-    // this repo commits its rollup bundle, so an npm bump alone leaves dist/ stale and
+    // this repo commits its bundle, so a dependency bump alone leaves dist/ stale and
     // the dist-up-to-date check blocks every merge path. Rebuild inside the update
-    // branch so the same PR carries a matching bundle. executionMode: branch runs the
-    // commands once per branch after all updates (groups, lock maintenance) are
-    // applied; the commands must match the bot's allowedCommands allow-list
-    // (renovate-config:renovate-global.json5) or Renovate skips them.
+    // branch so the same PR carries a matching bundle. `mise run build` installs as
+    // locked and bundles with the bun pinned in the toolchain's mise.lock -- the same
+    // bun CI builds with -- so dist/ reproduces byte-for-byte. executionMode: branch
+    // runs the command once per branch after all updates (groups, lock maintenance)
+    // are applied; it must match the bot's allowedCommands allow-list
+    // (renovate-config:renovate-global.json5) or Renovate skips it.
     {
-      matchManagers: ["npm"],
+      matchManagers: ["bun", "npm"],
       postUpgradeTasks: {
-        commands: ["npm ci --ignore-scripts", "npm run build"],
+        commands: ["mise run build"],
+        installTools: { mise: {} },
         fileFilters: ["dist/**"],
         executionMode: "branch",
       },

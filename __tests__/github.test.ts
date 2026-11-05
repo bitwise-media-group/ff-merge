@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, mock } from 'bun:test'
 import {
   COMMENT_MARKER,
   getClosingIssues,
@@ -26,7 +26,7 @@ describe('getPullRequest', () => {
   }
 
   it('maps the GraphQL node, including author login and mergeability', async () => {
-    const graphql = vi.fn().mockResolvedValue({ repository: { pullRequest: node } })
+    const graphql = mock().mockResolvedValue({ repository: { pullRequest: node } })
     const octokit = { graphql } as unknown as Octokit
 
     expect(await getPullRequest(octokit, { owner: 'acme', repo: 'app' }, 42)).toEqual({
@@ -42,9 +42,9 @@ describe('getPullRequest', () => {
   })
 
   it('maps a ghost (deleted) author to an empty login', async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValue({ repository: { pullRequest: { ...node, author: null } } })
+    const graphql = mock().mockResolvedValue({
+      repository: { pullRequest: { ...node, author: null } },
+    })
     const octokit = { graphql } as unknown as Octokit
 
     const pr = await getPullRequest(octokit, { owner: 'acme', repo: 'app' }, 42)
@@ -54,7 +54,7 @@ describe('getPullRequest', () => {
 
 describe('squashMerge', () => {
   it('merges via the API squash endpoint with the head-sha guard', async () => {
-    const merge = vi.fn().mockResolvedValue({ data: { sha: 'squash456', merged: true } })
+    const merge = mock().mockResolvedValue({ data: { sha: 'squash456', merged: true } })
     const octokit = { rest: { pulls: { merge } } } as unknown as Octokit
 
     const sha = await squashMerge(octokit, { owner: 'acme', repo: 'app' }, 42, 'abc123')
@@ -72,7 +72,7 @@ describe('squashMerge', () => {
 
 describe('getClosingIssues', () => {
   it('maps closingIssuesReferences nodes to owner/repo/number/state', async () => {
-    const graphql = vi.fn().mockResolvedValue({
+    const graphql = mock().mockResolvedValue({
       repository: {
         pullRequest: {
           closingIssuesReferences: {
@@ -100,7 +100,7 @@ describe('getClosingIssues', () => {
     ['the repository is absent', { repository: null }],
     ['references are null', { repository: { pullRequest: { closingIssuesReferences: null } } }],
   ])('returns [] when %s', async (_label, response) => {
-    const graphql = vi.fn().mockResolvedValue(response)
+    const graphql = mock().mockResolvedValue(response)
     const octokit = { graphql } as unknown as Octokit
 
     expect(await getClosingIssues(octokit, { owner: 'a', repo: 'b' }, 1)).toEqual([])
@@ -111,10 +111,10 @@ describe('upsertComment', () => {
   const repo = { owner: 'acme', repo: 'app' }
 
   function makeOctokit(existing: Array<{ id: number; body?: string }>) {
-    const listComments = vi.fn()
-    const createComment = vi.fn().mockResolvedValue({})
-    const updateComment = vi.fn().mockResolvedValue({})
-    const paginate = vi.fn().mockResolvedValue(existing)
+    const listComments = mock()
+    const createComment = mock().mockResolvedValue({})
+    const updateComment = mock().mockResolvedValue({})
+    const paginate = mock().mockResolvedValue(existing)
     const octokit = {
       paginate,
       rest: { issues: { listComments, createComment, updateComment } },

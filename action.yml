@@ -38,11 +38,11 @@ inputs:
   require-approval:
     description: Require the pull request's review decision to be APPROVED.
     required: false
-    default: 'true'
+    default: "true"
   maintainer-only:
     description: Require the actor to have write or higher access.
     required: false
-    default: 'true'
+    default: "true"
   require-label:
     description: >-
       If set, only fast-forward when the pull request carries a label with this
@@ -50,7 +50,7 @@ inputs:
       default) imposes no label requirement. The auto-merge flow sets it to the
       arming label. Needs no token scope beyond the pull-requests it already uses.
     required: false
-    default: ''
+    default: ""
   squash-authors:
     description: >-
       Comma- or space-separated author logins (e.g. "bitwise-renovate[bot]")
@@ -61,7 +61,7 @@ inputs:
       satisfies a required-signatures ruleset. Every other gate (approval,
       checks, label) applies unchanged. Empty (the default) squashes nothing.
     required: false
-    default: ''
+    default: ""
 
 outputs:
   merged:

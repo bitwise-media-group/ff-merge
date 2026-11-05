@@ -175,13 +175,17 @@ the App token and runs this action.
 
 ## Development
 
+The action is built, type-checked, tested and formatted with [bun](https://bun.com), pinned by the shared toolchain
+([`bitwise-media-group/toolchain`](https://github.com/bitwise-media-group/toolchain)) mounted at `.mise/`; no Node.js
+install is needed to work on it (the published action still runs on the runner's `node24`). Clone with
+`--recurse-submodules` (or run `git submodule update --init`) and have [mise](https://mise.jdx.dev) on `PATH`.
+
 ```sh
-mise install    # the pinned node + lint tools (root mise.toml + the .mise/ toolchain submodule)
-npm ci
-npm run all     # biome + markdownlint, tsc --noEmit, vitest, rollup build
-npm test        # unit tests only
-npm run build   # rebuild dist/index.js
-mise run ci     # the same gates CI runs: lint / build / test (`make ci` forwards here)
+mise install    # the pinned bun + lint tools (the .mise/ toolchain submodule)
+mise run ci     # the gates CI runs: lint (biome, bun check, prose) / build / test (`make ci` forwards here)
+mise run pr     # the full pre-commit gate: fmt → lint → build → test
+bun test        # unit tests only
+bun run build   # rebuild dist/index.js
 ```
 
 | Path            | Role                                                                                                     |
@@ -190,8 +194,8 @@ mise run ci     # the same gates CI runs: lint / build / test (`make ci` forward
 | `src/github.ts` | Octokit wrapper: paginated check rollup, GraphQL review decision & closing issues, ref move, issue close |
 | `src/inputs.ts` | input parsing                                                                                            |
 | `src/main.ts`   | orchestration                                                                                            |
-| `__tests__/`    | vitest                                                                                                   |
-| `dist/index.js` | the Rollup bundle consumers actually run — committed, and CI fails if it doesn't reproduce from `src/`   |
+| `__tests__/`    | `bun test`                                                                                               |
+| `dist/index.js` | the `bun build` bundle consumers actually run — committed, and CI fails if it doesn't reproduce          |
 
 There is no e2e: running the action for real would move a branch ref, so the gating logic is covered by the unit table
 instead, with the API's own non-fast-forward rejection as a backstop.

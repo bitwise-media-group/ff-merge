@@ -6,19 +6,10 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!package-lock.json", "!.claude", "!make"]
+    "includes": ["**", "!dist", "!bun.lock", "!.claude", "!.worktrees", "!.mise", "!coverage"]
   },
   "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single",
-      "semicolons": "asNeeded"
-    }
+    "enabled": false
   },
   "linter": {
     "enabled": true,

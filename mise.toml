@@ -2,22 +2,11 @@
 # SPDX-License-Identifier: MIT
 #
 # ff-merge consumes the shared toolchain (bitwise-media-group/toolchain) as the
-# .mise/ submodule: pinned tools come from its config.toml (loaded natively as
-# .mise/config.toml), the shared tasks from common/ and the node archetype, and
-# the Makefile is a thin forwarder (.mise/archetypes/node/include.mk). The
-# biome + rollup + vitest toolchain is exactly what the archetype drives, so
-# there are no repo-local tasks. node is pinned here (the repo's own runtime,
-# bumped by this repo's Renovate workflow) and locked in mise.lock.
-
-[settings]
-lockfile = true
-
-[tools]
-node = "26.13.0"
-
-[vars]
-# a GitHub Action repo: npm ci runs the lifecycle scripts
-npm_ci_flags = ""
-
+# .mise/ submodule: mise loads its config.toml natively as .mise/config.toml
+# (the pinned tools, bun among them) and this file selects the task files —
+# common first, then the node archetype, which drives the package.json
+# scripts. The repo is on bun, so it pins no runtime: the toolchain's bun is
+# the runtime, package manager, formatter, type checker, bundler and test
+# runner.
 [task_config]
 includes = [".mise/common/tasks.toml", ".mise/archetypes/node/tasks.toml"]

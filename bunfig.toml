@@ -1,0 +1,16 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+[install]
+# pin exact versions, as package.json always has; Renovate bumps them
+exact = true
+# 3d, parity with the fleet's Renovate / mise release cooldown
+minimumReleaseAge = 259200
+
+[test]
+root = "__tests__"
+# coverage of the shipped source only, as LCOV for Codecov plus a console summary
+coverage = true
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+coverageSkipTestFiles = true

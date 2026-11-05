@@ -3,8 +3,8 @@
 
 # CodeQL analysis configuration.
 #
-# dist/ is the Rollup-bundled Action output (src + vendored dependencies inlined;
-# see rollup.config.js). Its sources are already analysed directly via src/, so
+# dist/ is the bundled Action output (`bun build`: src + vendored dependencies
+# inlined; see the package.json build script). Its sources are already analysed directly via src/, so
 # scanning the bundle adds no coverage and only surfaces false positives from
 # third-party code. Exclude it.
 #

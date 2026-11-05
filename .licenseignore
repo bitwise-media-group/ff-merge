@@ -1,1 +1,2 @@
+# the committed bundle must stay byte-identical to the build output
 dist/**
