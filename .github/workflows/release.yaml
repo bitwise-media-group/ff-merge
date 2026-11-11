@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   release:
-    uses: bitwise-media-group/github-workflows/.github/workflows/release.yaml@35d8e9a1ce772f67f97e73484dc5b7a50c29e0f3 # v8.1.1
+    uses: bitwise-media-group/github-workflows/.github/workflows/release.yaml@67215effe1e541e699905fb62b7a48b7293f935c # v8.3.0
     with:
       # move the floating v1 / v1.1 tags consumers of the ff-merge action pin
       vanity-tags: true
