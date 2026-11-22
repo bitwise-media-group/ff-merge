@@ -8,7 +8,7 @@
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "bun@1.4.4",
+  "packageManager": "bun@1.4.5",
   "scripts": {
     "build": "bun build src/main.ts --target=node --format=esm --sourcemap=linked --outdir=dist --entry-naming=index.js --define __dirname=import.meta.dirname",
     "check": "bun ./node_modules/@biomejs/biome/bin/biome lint .",
