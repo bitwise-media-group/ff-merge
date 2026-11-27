@@ -19360,7 +19360,7 @@ function expand(template, context) {
       }
       expression.split(/,/g).forEach(function(variable) {
         var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-        values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+        values.push(...getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
       });
       if (operator && operator !== "+") {
         var separator = ",";
@@ -23254,5 +23254,5 @@ export {
   run
 };
 
-//# debugId=752AFE2FFFA6554864756E2164756E21
+//# debugId=400F25184B40B49464756E2164756E21
 //# sourceMappingURL=index.js.map
